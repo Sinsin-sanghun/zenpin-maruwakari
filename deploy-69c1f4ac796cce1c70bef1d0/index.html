@@ -1596,5 +1596,170 @@ async function init(){
 }
 init();
 </script>
+  <!--
+  ============================================
+  AIチャットウィジェット
+  このコードを既存HTMLの </body> の直前に貼り付けてください
+  ============================================
+-->
+ 
+<!-- AIチャットボタン（右下に浮かぶボタン） -->
+<div id="ai-chat-btn" onclick="toggleAIChat()" style="
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  width:56px; height:56px; border-radius:50%;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; box-shadow:0 4px 20px rgba(99,102,241,0.4);
+  font-size:24px; transition:transform 0.2s;
+" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+  🤖
+</div>
+ 
+<!-- AIチャットパネル -->
+<div id="ai-chat-panel" style="
+  display:none; position:fixed; bottom:90px; right:24px; z-index:9998;
+  width:380px; max-height:520px; border-radius:16px;
+  background:#1e1e2e; border:1px solid #333;
+  box-shadow:0 8px 40px rgba(0,0,0,0.5);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  overflow:hidden; display:none; flex-direction:column;
+">
+  <!-- ヘッダー -->
+  <div style="
+    padding:14px 18px; background:linear-gradient(135deg,#6366f1,#8b5cf6);
+    color:#fff; display:flex; align-items:center; justify-content:space-between;
+  ">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px">⚡</span>
+      <span style="font-weight:600;font-size:14px">AIアシスタント</span>
+    </div>
+    <span onclick="toggleAIChat()" style="cursor:pointer;font-size:18px;opacity:0.8">✕</span>
+  </div>
+ 
+  <!-- メッセージエリア -->
+  <div id="ai-chat-messages" style="
+    flex:1; overflow-y:auto; padding:16px; min-height:300px; max-height:360px;
+  ">
+    <div style="
+      background:#2a2a3e; border-radius:12px; padding:12px 14px;
+      color:#ccc; font-size:13px; line-height:1.5; margin-bottom:8px;
+    ">
+      こんにちは！資材に関する質問をどうぞ。<br>
+      例：「ケーブルの種類を教えて」「コスト削減の方法は？」
+    </div>
+  </div>
+ 
+  <!-- 入力エリア -->
+  <div style="padding:12px; border-top:1px solid #333; display:flex; gap:8px;">
+    <input id="ai-chat-input" type="text" placeholder="質問を入力..."
+      onkeydown="if(event.key==='Enter')sendAIChat()"
+      style="
+        flex:1; padding:10px 14px; border-radius:10px; border:1px solid #444;
+        background:#2a2a3e; color:#fff; font-size:13px; outline:none;
+      "
+    >
+    <button onclick="sendAIChat()" style="
+      padding:10px 16px; border-radius:10px; border:none;
+      background:linear-gradient(135deg,#6366f1,#8b5cf6);
+      color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+    ">送信</button>
+  </div>
+</div>
+ 
+<script>
+// === AIチャットウィジェット ===
+const AI_CHAT_ENDPOINT = '/.netlify/functions/chat';
+let aiChatHistory = [];
+let aiChatBusy = false;
+ 
+function toggleAIChat() {
+  const panel = document.getElementById('ai-chat-panel');
+  if (panel.style.display === 'flex') {
+    panel.style.display = 'none';
+  } else {
+    panel.style.display = 'flex';
+    document.getElementById('ai-chat-input').focus();
+  }
+}
+ 
+function addAIMessage(text, isUser) {
+  const box = document.getElementById('ai-chat-messages');
+  const div = document.createElement('div');
+  div.style.cssText = `
+    background:${isUser ? '#6366f1' : '#2a2a3e'};
+    color:${isUser ? '#fff' : '#ccc'};
+    border-radius:12px; padding:10px 14px;
+    font-size:13px; line-height:1.6;
+    margin-bottom:8px; max-width:85%;
+    margin-left:${isUser ? 'auto' : '0'};
+    margin-right:${isUser ? '0' : 'auto'};
+    word-break:break-word;
+  `;
+  // 簡易マークダウン変換
+  let html = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+  div.innerHTML = html;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+ 
+function showAILoading() {
+  const box = document.getElementById('ai-chat-messages');
+  const div = document.createElement('div');
+  div.id = 'ai-loading';
+  div.style.cssText = 'color:#888;font-size:12px;padding:8px;';
+  div.textContent = '🤖 考え中...';
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+ 
+function removeAILoading() {
+  const el = document.getElementById('ai-loading');
+  if (el) el.remove();
+}
+ 
+async function sendAIChat() {
+  if (aiChatBusy) return;
+  const input = document.getElementById('ai-chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+ 
+  input.value = '';
+  addAIMessage(msg, true);
+  showAILoading();
+  aiChatBusy = true;
+ 
+  try {
+    const res = await fetch(AI_CHAT_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        history: aiChatHistory.slice(-6)
+      })
+    });
+    const data = await res.json();
+    removeAILoading();
+ 
+    if (data.error) {
+      addAIMessage('⚠️ エラー: ' + data.error, false);
+    } else {
+      const reply = data.response || '応答なし';
+      addAIMessage(reply, false);
+      aiChatHistory.push(
+        { role: 'user', content: msg },
+        { role: 'assistant', content: reply }
+      );
+    }
+  } catch (e) {
+    removeAILoading();
+    addAIMessage('⚠️ 接続エラー: ' + e.message, false);
+  }
+ 
+  aiChatBusy = false;
+}
+</script>
 </body>
 </html>
