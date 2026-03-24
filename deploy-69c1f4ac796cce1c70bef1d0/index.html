@@ -213,8 +213,8 @@ a{color:var(--ac);text-decoration:none;}
 .news-card-tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
 .news-card-tag{font-size:0.78em;padding:2px 8px;background:#e3f2fd;color:#1976d2;border-radius:10px;}
 .news-card-tag.market{background:#fff3e0;color:#e65100;}
-.news-nav-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;margin:8px 12px;border-radius:8px;background:#e3f2fd;color:#1976d2;cursor:pointer;font-weight:600;font-size:0.95em;transition:background 0.2s;}
-.news-nav-btn:hover{background:#bbdefb;}
+.news-nav-btn{position:fixed;bottom:20px;right:20px;z-index:10000;padding:12px 24px;background:linear-gradient(135deg,#1976d2,#42a5f5);color:#fff;border-radius:50px;cursor:pointer;font-weight:600;font-size:0.95em;box-shadow:0 4px 15px rgba(25,118,210,0.4);display:flex;align-items:center;gap:8px;transition:transform 0.2s,box-shadow 0.2s;}
+.news-nav-btn:hover{transform:scale(1.05);box-shadow:0 6px 20px rgba(25,118,210,0.5);}
 </style>
 </head>
 <body>
@@ -222,7 +222,6 @@ a{color:var(--ac);text-decoration:none;}
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">ð</div>
-      <div class="news-nav-btn" onclick="loadNews().then(()=>showNews())">📰 News & マーケット情報</div>
     <div class="login-title">è³æDB å¨åã¾ããããã¬ã¤ã</div>
     <div class="login-sub">ãããã¾é»å ï¼ ã­ã°ã¤ã³ãã¦å©ç¨ãéå§</div>
     <button class="login-btn" id="btnGoogleLogin">
@@ -1652,6 +1651,7 @@ init();
 </script>
 <!--
   v6: ãµã¤ããã¼å¸¸æè¡¨ç¤º + ã¡ã¤ã³ã¨ãªã¢åã«AIåç­è¡¨ç¤º
+<div class="news-nav-btn" onclick="loadNews().then(()=>showNews())">📰 News & マーケット情報</div>
   </body> ã®ç´åã«è²¼ãä»ã
   â» æ¢å­ã®v5ã³ã¼ãï¼ai-q-bubble, ai-overlay, ä¸é¨å¥åãã¼, style, scriptï¼ã¯å¨ã¦åé¤ãã¦ãããããè²¼ã
 -->
