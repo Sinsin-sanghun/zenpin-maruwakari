@@ -1603,162 +1603,249 @@ init();
   ============================================
 -->
  
-<!-- AIチャットボタン（右下に浮かぶボタン） -->
-<div id="ai-chat-btn" onclick="toggleAIChat()" style="
-  position:fixed; bottom:24px; right:24px; z-index:9999;
-  width:56px; height:56px; border-radius:50%;
-  background:linear-gradient(135deg,#6366f1,#8b5cf6);
-  color:#fff; display:flex; align-items:center; justify-content:center;
-  cursor:pointer; box-shadow:0 4px 20px rgba(99,102,241,0.4);
-  font-size:24px; transition:transform 0.2s;
-" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-  🤖
-</div>
- 
-<!-- AIチャットパネル -->
-<div id="ai-chat-panel" style="
-  display:none; position:fixed; bottom:90px; right:24px; z-index:9998;
-  width:380px; max-height:520px; border-radius:16px;
-  background:#1e1e2e; border:1px solid #333;
-  box-shadow:0 8px 40px rgba(0,0,0,0.5);
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  overflow:hidden; display:none; flex-direction:column;
+<!-- AI回答サイドパネル（右側） -->
+<div id="ai-panel" style="
+  display:none; position:fixed; top:0; right:0; z-index:9990;
+  width:480px; height:100vh;
+  background:#fff; border-left:1px solid #e2e8f0;
+  box-shadow:-4px 0 24px rgba(0,0,0,0.08);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;
+  flex-direction:column; overflow:hidden;
 ">
-  <!-- ヘッダー -->
+  <!-- パネルヘッダー -->
   <div style="
-    padding:14px 18px; background:linear-gradient(135deg,#6366f1,#8b5cf6);
+    padding:16px 20px; background:linear-gradient(135deg,#4f46e5,#7c3aed);
     color:#fff; display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
   ">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:18px">⚡</span>
-      <span style="font-weight:600;font-size:14px">AIアシスタント</span>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:20px">🤖</span>
+      <span style="font-weight:700;font-size:16px;">AI分析結果</span>
     </div>
-    <span onclick="toggleAIChat()" style="cursor:pointer;font-size:18px;opacity:0.8">✕</span>
+    <span onclick="closeAIPanel()" style="cursor:pointer;font-size:20px;opacity:0.8;padding:4px 8px;">✕</span>
   </div>
  
-  <!-- メッセージエリア -->
-  <div id="ai-chat-messages" style="
-    flex:1; overflow-y:auto; padding:16px; min-height:300px; max-height:360px;
+  <!-- パネル本体（スクロール可能） -->
+  <div id="ai-panel-body" style="
+    flex:1; overflow-y:auto; padding:24px;
+    font-size:14px; line-height:1.8; color:#1e293b;
   ">
-    <div style="
-      background:#2a2a3e; border-radius:12px; padding:12px 14px;
-      color:#ccc; font-size:13px; line-height:1.5; margin-bottom:8px;
-    ">
-      こんにちは！資材に関する質問をどうぞ。<br>
-      例：「ケーブルの種類を教えて」「コスト削減の方法は？」
+    <div style="color:#94a3b8;text-align:center;padding:40px 0;">
+      AIに質問すると、ここに回答が表示されます
     </div>
-  </div>
- 
-  <!-- 入力エリア -->
-  <div style="padding:12px; border-top:1px solid #333; display:flex; gap:8px;">
-    <input id="ai-chat-input" type="text" placeholder="質問を入力..."
-      onkeydown="if(event.key==='Enter')sendAIChat()"
-      style="
-        flex:1; padding:10px 14px; border-radius:10px; border:1px solid #444;
-        background:#2a2a3e; color:#fff; font-size:13px; outline:none;
-      "
-    >
-    <button onclick="sendAIChat()" style="
-      padding:10px 16px; border-radius:10px; border:none;
-      background:linear-gradient(135deg,#6366f1,#8b5cf6);
-      color:#fff; font-size:13px; font-weight:600; cursor:pointer;
-    ">送信</button>
   </div>
 </div>
+ 
+<!-- リサイズオーバーレイ（パネル表示時に左側を暗くする） -->
+<div id="ai-overlay" onclick="closeAIPanel()" style="
+  display:none; position:fixed; top:0; left:0; z-index:9989;
+  width:100%; height:100%; background:rgba(0,0,0,0.15);
+"></div>
+ 
+<!-- 画面下部の固定入力バー -->
+<div id="ai-input-bar" style="
+  position:fixed; bottom:0; left:0; right:0; z-index:9995;
+  background:#fff; border-top:1px solid #e2e8f0;
+  padding:12px 24px; box-shadow:0 -2px 12px rgba(0,0,0,0.06);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;
+">
+  <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:12px;">
+    <div style="flex:1;position:relative;">
+      <input id="ai-input" type="text"
+        placeholder="AIに質問（例: おすすめのPCSは？ ケーブルの種類を教えて）"
+        onkeydown="if(event.key==='Enter')sendAI()"
+        style="
+          width:100%; padding:14px 18px; border-radius:12px;
+          border:2px solid #e2e8f0; background:#f8fafc;
+          font-size:14px; color:#1e293b; outline:none;
+          transition:border-color 0.2s;
+        "
+        onfocus="this.style.borderColor='#6366f1'"
+        onblur="this.style.borderColor='#e2e8f0'"
+      >
+    </div>
+    <button onclick="sendAI()" id="ai-send-btn" style="
+      padding:14px 28px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      color:#fff; font-size:14px; font-weight:700; cursor:pointer;
+      transition:opacity 0.2s; white-space:nowrap;
+    " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+      送信
+    </button>
+  </div>
+  <div style="max-width:900px;margin:4px auto 0;font-size:11px;color:#94a3b8;">
+    Claude AI がDBを検索して回答します
+  </div>
+</div>
+ 
+<!-- 既存コンテンツの下部パディング（入力バーに隠れないように） -->
+<div style="height:80px;"></div>
+ 
+<style>
+  /* AI回答内のマークダウンスタイル */
+  #ai-panel-body h2, #ai-panel-body .ai-h2 {
+    font-size:18px; font-weight:700; color:#4f46e5;
+    margin:20px 0 10px; padding-bottom:6px;
+    border-bottom:2px solid #e2e8f0;
+  }
+  #ai-panel-body h3, #ai-panel-body .ai-h3 {
+    font-size:15px; font-weight:700; color:#6366f1;
+    margin:16px 0 8px;
+  }
+  #ai-panel-body strong { color:#1e293b; }
+  #ai-panel-body table {
+    width:100%; border-collapse:collapse; margin:12px 0;
+    font-size:13px;
+  }
+  #ai-panel-body th {
+    background:#f1f5f9; padding:10px 12px; text-align:left;
+    font-weight:600; color:#475569; border-bottom:2px solid #e2e8f0;
+  }
+  #ai-panel-body td {
+    padding:8px 12px; border-bottom:1px solid #f1f5f9; color:#334155;
+  }
+  #ai-panel-body tr:hover td { background:#f8fafc; }
+  #ai-panel-body ul, #ai-panel-body ol {
+    padding-left:20px; margin:8px 0;
+  }
+  #ai-panel-body li { margin:4px 0; color:#475569; }
+  #ai-panel-body code {
+    background:#f1f5f9; padding:2px 6px; border-radius:4px;
+    font-size:12px; color:#6366f1;
+  }
+  /* ローディングアニメーション */
+  .ai-loading-dots { display:inline-flex; gap:4px; align-items:center; }
+  .ai-loading-dots span {
+    width:8px; height:8px; border-radius:50%; background:#6366f1;
+    animation:ai-dot-bounce 1.4s infinite ease-in-out both;
+  }
+  .ai-loading-dots span:nth-child(1) { animation-delay:-0.32s; }
+  .ai-loading-dots span:nth-child(2) { animation-delay:-0.16s; }
+  @keyframes ai-dot-bounce {
+    0%,80%,100% { transform:scale(0); opacity:0.5; }
+    40% { transform:scale(1); opacity:1; }
+  }
+  /* レスポンシブ */
+  @media(max-width:768px) {
+    #ai-panel { width:100% !important; }
+  }
+</style>
  
 <script>
-// === AIチャットウィジェット ===
-const AI_CHAT_ENDPOINT = '/.netlify/functions/chat';
-let aiChatHistory = [];
-let aiChatBusy = false;
+// === AIアシスタント（上司UIスタイル） ===
+const AI_ENDPOINT = '/.netlify/functions/chat';
+let chatHistory = [];
+let isBusy = false;
  
-function toggleAIChat() {
-  const panel = document.getElementById('ai-chat-panel');
-  if (panel.style.display === 'flex') {
-    panel.style.display = 'none';
-  } else {
-    panel.style.display = 'flex';
-    document.getElementById('ai-chat-input').focus();
-  }
+function openAIPanel() {
+  document.getElementById('ai-panel').style.display = 'flex';
+  document.getElementById('ai-overlay').style.display = 'block';
 }
  
-function addAIMessage(text, isUser) {
-  const box = document.getElementById('ai-chat-messages');
-  const div = document.createElement('div');
-  div.style.cssText = `
-    background:${isUser ? '#6366f1' : '#2a2a3e'};
-    color:${isUser ? '#fff' : '#ccc'};
-    border-radius:12px; padding:10px 14px;
-    font-size:13px; line-height:1.6;
-    margin-bottom:8px; max-width:85%;
-    margin-left:${isUser ? 'auto' : '0'};
-    margin-right:${isUser ? '0' : 'auto'};
-    word-break:break-word;
+function closeAIPanel() {
+  document.getElementById('ai-panel').style.display = 'none';
+  document.getElementById('ai-overlay').style.display = 'none';
+}
+ 
+function showLoading() {
+  openAIPanel();
+  document.getElementById('ai-panel-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:40px 0;justify-content:center;color:#6366f1;">
+      <div class="ai-loading-dots"><span></span><span></span><span></span></div>
+      <span style="font-size:14px;font-weight:600;">DB検索 & AI分析中...</span>
+    </div>
   `;
-  // 簡易マークダウン変換
+}
+ 
+function renderMarkdown(text) {
   let html = text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
-  div.innerHTML = html;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+ 
+  // テーブル
+  html = html.replace(/((?:^\|.+\|$\n?)+)/gm, function(tbl) {
+    const rows = tbl.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tbl;
+    let t = '<table>';
+    const hCells = rows[0].split('|').filter(c => c.trim());
+    t += '<thead><tr>' + hCells.map(c => '<th>' + c.trim() + '</th>').join('') + '</tr></thead>';
+    const startIdx = rows[1].match(/^[\|\s\-:]+$/) ? 2 : 1;
+    t += '<tbody>';
+    for (let i = startIdx; i < rows.length; i++) {
+      const cells = rows[i].split('|').filter(c => c.trim());
+      t += '<tr>' + cells.map(c => '<td>' + c.trim() + '</td>').join('') + '</tr>';
+    }
+    t += '</tbody></table>';
+    return t;
+  });
+ 
+  // 見出し
+  html = html.replace(/^### (.+)$/gm, '<h3 class="ai-h3">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 class="ai-h2">$1</h2>');
+ 
+  // 太字
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+ 
+  // リスト
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/gm, '<ul>$&</ul>');
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+ 
+  // 改行
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = html.replace(/\n/g, '<br>');
+ 
+  return '<p>' + html + '</p>';
 }
  
-function showAILoading() {
-  const box = document.getElementById('ai-chat-messages');
-  const div = document.createElement('div');
-  div.id = 'ai-loading';
-  div.style.cssText = 'color:#888;font-size:12px;padding:8px;';
-  div.textContent = '🤖 考え中...';
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
- 
-function removeAILoading() {
-  const el = document.getElementById('ai-loading');
-  if (el) el.remove();
-}
- 
-async function sendAIChat() {
-  if (aiChatBusy) return;
-  const input = document.getElementById('ai-chat-input');
+async function sendAI() {
+  if (isBusy) return;
+  const input = document.getElementById('ai-input');
   const msg = input.value.trim();
   if (!msg) return;
  
   input.value = '';
-  addAIMessage(msg, true);
-  showAILoading();
-  aiChatBusy = true;
+  showLoading();
+  isBusy = true;
+  document.getElementById('ai-send-btn').style.opacity = '0.5';
  
   try {
-    const res = await fetch(AI_CHAT_ENDPOINT, {
+    const res = await fetch(AI_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: msg,
-        history: aiChatHistory.slice(-6)
+        history: chatHistory.slice(-6)
       })
     });
     const data = await res.json();
-    removeAILoading();
  
     if (data.error) {
-      addAIMessage('⚠️ エラー: ' + data.error, false);
+      document.getElementById('ai-panel-body').innerHTML =
+        '<div style="color:#ef4444;padding:20px;">⚠️ エラー: ' + data.error + '</div>';
     } else {
       const reply = data.response || '応答なし';
-      addAIMessage(reply, false);
-      aiChatHistory.push(
+      chatHistory.push(
         { role: 'user', content: msg },
         { role: 'assistant', content: reply }
       );
+ 
+      const rendered = renderMarkdown(reply);
+      document.getElementById('ai-panel-body').innerHTML =
+        '<div style="margin-bottom:12px;padding:8px 12px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#6366f1;font-weight:600;">💬 ' +
+        msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>' + rendered;
     }
+    openAIPanel();
+ 
   } catch (e) {
-    removeAILoading();
-    addAIMessage('⚠️ 接続エラー: ' + e.message, false);
+    document.getElementById('ai-panel-body').innerHTML =
+      '<div style="color:#ef4444;padding:20px;">⚠️ 接続エラー: ' + e.message + '</div>';
+    openAIPanel();
   }
  
-  aiChatBusy = false;
+  isBusy = false;
+  document.getElementById('ai-send-btn').style.opacity = '1';
 }
 </script>
 </body>
