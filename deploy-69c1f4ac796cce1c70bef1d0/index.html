@@ -1816,8 +1816,8 @@ function showNews(filter){
   });
   if(!filtered.length){html+='<p style="color:#999;text-align:center;padding:40px;">\u8A72\u5F53\u3059\u308B\u8A18\u4E8B\u304C\u3042\u308A\u307E\u305B\u3093</p>';}
   html+='</div>';
-  document.getElementById('main').innerHTML=html;
-  document.getElementById('main').scrollTop=0;
+  document.querySelector('.main').innerHTML=html;
+  document.querySelector('.main').scrollTop=0;
 }
 </script>
 </body>
