@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>資材DB 全品まるわかりガイド — しろくま電力</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;
+  --tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;
+  --ac:#f59e0b;--ac2:#d97706;
+  --bl:#3b82f6;--gr:#22c55e;--re:#ef4444;--cy:#06b6d4;
+  --or:#f97316;
+  --sidebar:280px;
+}
+html,body{height:100%;font-family:'Segoe UI','Hiragino Sans',sans-serif;background:var(--bg);color:var(--tx);overflow:hidden;}
+a{color:var(--ac);text-decoration:none;}
+
+/* LAYOUT */
+.app{display:flex;height:100vh;}
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--bg3);display:flex;flex-direction:column;height:100vh;}
+.main{flex:1;overflow-y:auto;padding:32px 40px;background:#ffffff;color:#1e293b;}
+
+/* SIDEBAR HEADER */
+.sb-header{padding:16px;border-bottom:1px solid var(--bg3);}
+.sb-title{font-size:14px;font-weight:700;color:var(--ac);margin-bottom:4px;}
+.sb-sub{font-size:11px;color:var(--tx2);}
+.sb-stats{display:flex;gap:12px;margin-top:8px;}
+.sb-stat{font-size:18px;font-weight:800;color:var(--tx);}
+.sb-stat span{display:block;font-size:10px;font-weight:400;color:var(--tx3);}
+
+/* SEARCH */
+.sb-search{padding:12px;border-bottom:1px solid var(--bg3);}
+.sb-search input{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--bg3);border-radius:6px;background:var(--bg);color:var(--tx);font-size:13px;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center;}
+.sb-search input::placeholder{color:var(--tx3);}
+.sb-search input:focus{border-color:var(--ac);}
+
+/* CATEGORY LIST (accordion style) */
+.sb-list{flex:1;overflow-y:auto;padding:0;}
+.sb-group{}
+.sb-group-header{display:flex;align-items:center;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--bg3);transition:background .1s;user-select:none;}
+.sb-group-header:hover{background:var(--bg3);}
+.sb-group-arrow{font-size:10px;color:var(--tx3);width:20px;flex-shrink:0;transition:transform .2s;}
+.sb-group-header.open .sb-group-arrow{transform:rotate(90deg);}
+.sb-group-icon{margin-right:8px;font-size:14px;}
+.sb-group-name{flex:1;font-size:13px;font-weight:600;color:var(--tx);}
+.sb-group-count{font-size:11px;color:var(--ac);background:rgba(245,158,11,.15);padding:2px 8px;border-radius:10px;font-weight:600;}
+.sb-group-items{display:none;background:rgba(0,0,0,.15);}
+.sb-group-header.open+.sb-group-items{display:block;}
+
+/* ITEM */
+.sb-item{display:flex;align-items:center;padding:7px 12px 7px 40px;cursor:pointer;border-left:3px solid transparent;transition:all .1s;}
+.sb-item:hover{background:var(--bg3);}
+.sb-item.active{background:rgba(245,158,11,.1);border-left-color:var(--ac);}
+.sb-item-num{font-size:10px;color:var(--tx3);width:28px;flex-shrink:0;font-weight:600;}
+.sb-item-info{flex:1;min-width:0;}
+.sb-item-name{font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-item-sub{font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-item-price{font-size:11px;color:var(--ac);font-weight:600;flex-shrink:0;margin-left:8px;}
+
+/* MAIN EMPTY */
+.main-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--tx3);text-align:center;}
+.main-empty .big{font-size:48px;margin-bottom:16px;}
+.main-empty p{font-size:14px;}
+
+/* RIGHT-SIDE LIST TABLE */
+.list-header{display:flex;align-items:center;margin-bottom:16px;gap:12px;}
+.list-header h2{font-size:18px;font-weight:800;color:#0f172a;flex:1;}
+.list-header .list-icon{font-size:20px;}
+.list-header .list-count{font-size:13px;color:#64748b;}
+.list-back{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#3b82f6;cursor:pointer;margin-bottom:12px;padding:4px 0;border:none;background:none;}
+.list-back:hover{color:#2563eb;text-decoration:underline;}
+.rtable{width:100%;border-collapse:collapse;font-size:13px;}
+.rtable thead th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:#64748b;border-bottom:2px solid #e2e8f0;background:#f8fafc;}
+.rtable tbody tr{cursor:pointer;transition:background .1s;}
+.rtable tbody tr:hover{background:#f1f5f9;}
+.rtable tbody td{padding:10px 12px;border-bottom:1px solid #f1f5f9;}
+.rtable .r-num{color:#94a3b8;font-weight:600;width:40px;}
+.rtable .r-name{font-weight:600;color:#0f172a;}
+.rtable .r-sub{color:#64748b;}
+.rtable .r-maker{color:#64748b;}
+.rtable .r-price{text-align:right;font-weight:700;color:#d97706;}
+
+/* DETAIL HEADER */
+.det-header{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #e2e8f0;}
+.det-num{font-size:64px;font-weight:900;color:#cbd5e1;line-height:1;float:left;margin-right:16px;}
+.det-cat{font-size:13px;color:#d97706;font-weight:600;}
+.det-name{font-size:24px;font-weight:800;margin:4px 0;color:#0f172a;}
+.det-sub{font-size:12px;color:#64748b;}
+
+/* MEDIA ROW (photo + diagram) */
+.det-photo-row{margin-bottom:18px;display:flex;justify-content:center;}
+.det-photo-box{background:#161824;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;max-width:420px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.det-photo-box img{max-width:100%;max-height:300px;object-fit:contain;display:block;margin:auto;padding:8px;}
+.det-photo-label{text-align:center;padding:8px;font-size:11px;color:#94a3b8;background:rgba(0,0,0,.3);}
+.det-media{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;clear:both;}
+.det-imgbox{background:#161824;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.det-imgbox img{max-width:100%;max-height:280px;object-fit:contain;display:block;margin:auto;}
+.det-imgbox-label{text-align:center;padding:8px;font-size:11px;color:#94a3b8;background:rgba(0,0,0,.3);}
+.det-diagram{background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;}
+.det-diagram-title{font-size:13px;font-weight:700;color:#d97706;margin-bottom:10px;text-align:center;}
+.det-diagram svg{width:100%;max-width:480px;height:auto;}
+.det-diagram-desc{margin-top:10px;font-size:12px;color:#64748b;text-align:center;line-height:1.7;max-width:420px;}
+@media(max-width:768px){.det-media{grid-template-columns:1fr;}}
+
+/* CARDS */
+.det-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;clear:both;}
+.det-card{background:#f8fafc;border-radius:10px;padding:16px;border:1px solid #e2e8f0;border-top:3px solid var(--bl);}
+.det-card.c-bl{border-top-color:var(--bl);}
+.det-card.c-or{border-top-color:var(--or);}
+.det-card.c-gr{border-top-color:var(--gr);}
+.det-card.c-re{border-top-color:var(--re);}
+.det-card.c-cy{border-top-color:var(--cy);}
+.det-card-title{font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;}
+.det-card-body{font-size:13px;color:#1e293b;line-height:1.6;}
+.det-card-body strong{color:#d97706;}
+.det-card-body .ok{color:var(--gr);}
+.det-card-body .warn{color:var(--re);}
+.det-card-body table.stbl{width:100%;font-size:12px;border-collapse:collapse;}
+.det-card-body table.stbl td{padding:4px 8px;border-bottom:1px solid #e2e8f0;}
+.det-card-body table.stbl td:first-child{color:#64748b;width:40%;}
+.det-price{font-size:28px;font-weight:800;color:#d97706;}
+.det-price-sub{font-size:12px;color:#64748b;margin-top:4px;}
+
+/* PRICE HISTORY */
+.det-history{background:#f8fafc;border-radius:10px;padding:16px;border:1px solid #e2e8f0;margin-bottom:24px;}
+.det-history-title{font-size:12px;color:#d97706;font-weight:700;margin-bottom:8px;}
+.det-history table{width:100%;border-collapse:collapse;font-size:13px;color:#1e293b;}
+.det-history th{text-align:left;color:#64748b;font-size:11px;padding:6px 8px;border-bottom:1px solid #e2e8f0;}
+.det-history td{padding:6px 8px;border-bottom:1px solid #f1f5f9;}
+.det-history td:last-child{text-align:right;color:#d97706;font-weight:600;}
+
+/* MAIN EMPTY on white */
+.main .main-empty{color:#94a3b8;}
+
+/* SCROLLBAR - sidebar */
+.sidebar ::-webkit-scrollbar{width:6px;}
+.sidebar ::-webkit-scrollbar-track{background:transparent;}
+.sidebar ::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+.sidebar ::-webkit-scrollbar-thumb:hover{background:var(--tx3);}
+/* SCROLLBAR - main */
+.main::-webkit-scrollbar{width:6px;}
+.main::-webkit-scrollbar-track{background:transparent;}
+.main::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+.main::-webkit-scrollbar-thumb:hover{background:#94a3b8;}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .app{flex-direction:column;}
+  .sidebar{width:100%;min-width:100%;height:auto;max-height:45vh;}
+  .main{padding:16px;}
+  .det-cards{grid-template-columns:1fr;}
+  .det-num{font-size:40px;}
+}
+
+/* LOGIN OVERLAY */
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.login-box{background:var(--bg2);border:1px solid var(--bg3);border-radius:16px;padding:48px 40px;text-align:center;max-width:400px;width:90%;box-shadow:0 25px 50px rgba(0,0,0,.5);}
+.login-logo{font-size:48px;margin-bottom:16px;}
+.login-title{font-size:22px;font-weight:800;color:var(--tx);margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--tx2);margin-bottom:32px;}
+.login-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 24px;border:none;border-radius:10px;background:#ffffff;color:#1e293b;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.login-btn:hover{background:#f1f5f9;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3);}
+.login-btn img{width:20px;height:20px;}
+.login-note{margin-top:20px;font-size:11px;color:var(--tx3);}
+
+/* USER BAR */
+.sb-user{padding:10px 12px;border-bottom:1px solid var(--bg3);display:flex;align-items:center;gap:8px;}
+.sb-user-avatar{width:28px;height:28px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;overflow:hidden;}
+.sb-user-avatar img{width:100%;height:100%;object-fit:cover;}
+.sb-user-info{flex:1;min-width:0;}
+.sb-user-name{font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-email{font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-logout{background:none;border:1px solid var(--bg3);color:var(--tx3);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;flex-shrink:0;}
+.sb-logout:hover{background:var(--bg3);color:var(--tx);}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:100%;color:var(--tx2);}
+.loading::after{content:'';width:24px;height:24px;border:3px solid var(--bg3);border-top-color:var(--ac);border-radius:50%;animation:spin .6s linear infinite;margin-left:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Footer */
+.det-footer{text-align:center;padding:16px;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;margin-top:24px;}
+
+/* SIDEBAR FOOTER */
+.sb-footer{padding:10px 12px;border-top:1px solid var(--bg3);display:flex;gap:8px;}
+.sb-footer-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.sb-btn-add{background:var(--ac);color:#000;}
+.sb-btn-add:hover{background:var(--ac2);}
+.sb-btn-secondary{background:var(--bg3);color:var(--tx2);}
+.sb-btn-secondary:hover{background:var(--bg);color:var(--tx);}
+</style>
+</head>
+<body>
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">📖</div>
+    <div class="login-title">資材DB 全品まるわかりガイド</div>
+    <div class="login-sub">しろくま電力 ／ ログインして利用を開始</div>
+    <button class="login-btn" id="btnGoogleLogin">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+      Googleアカウントでログイン
+    </button>
+    <div class="login-note">社内アカウント（@shirokumapower.com）でログインしてください</div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none;">
+  <div class="sidebar">
+    <!-- User info bar (populated after login) -->
+    <div class="sb-user" id="userBar" style="display:none;">
+      <div class="sb-user-avatar" id="userAvatar">?</div>
+      <div class="sb-user-info">
+        <div class="sb-user-name" id="userName">—</div>
+        <div class="sb-user-email" id="userEmail">—</div>
+      </div>
+      <button class="sb-logout" id="btnLogout">ログアウト</button>
+    </div>
+    <div class="sb-header">
+      <div class="sb-title">資材DB 全品まるわかりガイド</div>
+      <div class="sb-sub">しろくま電力 ／ 資材単価表 全品ガイド</div>
+      <div class="sb-stats">
+        <div class="sb-stat" id="statTotal">—<span>品目</span></div>
+        <div class="sb-stat" id="statCats">—<span>カテゴリ</span></div>
+        <div class="sb-stat" id="statPrices">—<span>価格レコード</span></div>
+      </div>
+    </div>
+    <div class="sb-search">
+      <input type="text" id="searchInput" placeholder="品名・型番・メーカーで検索">
+    </div>
+    <div class="sb-list" id="itemList"><div class="loading">読み込み中</div></div>
+    <div class="sb-footer">
+      <button class="sb-footer-btn sb-btn-add" id="btnAddSheet" onclick="alert('資材追加機能は今後実装予定です')">＋ シート追加</button>
+      <button class="sb-footer-btn sb-btn-secondary" id="btnAnalysis" onclick="alert('分析機能は今後実装予定です')">📊 分析</button>
+    </div>
+  </div>
+  <div class="main" id="mainContent">
+    <div class="main-empty">
+      <div class="big">📖</div>
+      <p>左側のリストから資材を選択してください</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== AUTH (shizai-db) ===== */
+const AUTH_URL='https://akugywiixjaqpvzjrzvb.supabase.co';
+const AUTH_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrdWd5d2lpeGphcXB2empyenZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NDIzNTEsImV4cCI6MjA4OTIxODM1MX0.iuv5MFPE15IP5ZJKoZSRM3W5vD90XbowM1VWm_Aw9tk';
+const authClient=supabase.createClient(AUTH_URL,AUTH_KEY);
+
+const ALLOWED_DOMAIN='shirokumapower.com';
+
+function showApp(user){
+  // Domain check
+  const email=user.email||'';
+  if(!email.endsWith('@'+ALLOWED_DOMAIN)){
+    authClient.auth.signOut();
+    document.getElementById('loginOverlay').style.display='flex';
+    document.getElementById('app').style.display='none';
+    alert('アクセス権限がありません。\n@'+ALLOWED_DOMAIN+' のアカウントでログインしてください。');
+    return;
+  }
+  document.getElementById('loginOverlay').style.display='none';
+  document.getElementById('app').style.display='flex';
+  // User bar
+  const bar=document.getElementById('userBar');
+  bar.style.display='flex';
+  const name=user.user_metadata?.full_name||user.email?.split('@')[0]||'ユーザー';
+  const avatar=user.user_metadata?.avatar_url;
+  document.getElementById('userName').textContent=name;
+  document.getElementById('userEmail').textContent=user.email||'';
+  const avatarEl=document.getElementById('userAvatar');
+  if(avatar){
+    avatarEl.innerHTML='<img src="'+avatar+'" alt="">';
+  }else{
+    avatarEl.textContent=name.charAt(0);
+  }
+}
+
+function showLogin(){
+  document.getElementById('loginOverlay').style.display='flex';
+  document.getElementById('app').style.display='none';
+}
+
+async function googleLogin(){
+  const{error}=await authClient.auth.signInWithOAuth({
+    provider:'google',
+    options:{redirectTo:window.location.origin}
+  });
+  if(error)alert('ログインエラー: '+error.message);
+}
+
+async function logout(){
+  await authClient.auth.signOut();
+  showLogin();
+}
+
+// Auth state listener
+authClient.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_IN'&&session){
+    showApp(session.user);
+  }else if(event==='SIGNED_OUT'){
+    showLogin();
+  }
+});
+
+// Check existing session on load
+(async()=>{
+  const{data:{session}}=await authClient.auth.getSession();
+  if(session){
+    showApp(session.user);
+  }else{
+    document.getElementById('loginOverlay').style.display='flex';
+  }
+})();
+
+// Button events
+document.getElementById('btnGoogleLogin').addEventListener('click',googleLogin);
+document.getElementById('btnLogout').addEventListener('click',logout);
+
+/* ===== DATA (catalog DB) ===== */
+const SUPA_URL='https://manowprcyrfqonzdoqja.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hbm93cHJjeXJmcW9uemRvcWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTU5NDIsImV4cCI6MjA4ODc5MTk0Mn0.eZ9UHW041t85kLBglI_CK6p0uX5dRVMbWyJO0oR50Kc';
+const HDRS={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};
+
+let ALL=[];
+let activeId=null;
+let openGroups=new Set();
+
+// Category icons mapping
+const CAT_ICONS={
+  '電源機器（PCS・蓄電池）':'⚡','太陽光パネル':'☀️','受配電・盤':'🔌',
+  '変圧器・トランス':'🔋','保護・ブレーカー':'🛡️','計測・センサー':'📊',
+  'ケーブル・電線':'🔗','端末材・接続部品':'🔧','通信・監視・制御':'📡',
+  '配管・ラック':'🏗️','架台・基礎':'🏛️','金物・ボルト・鋼材':'⚙️',
+  'フェンス・門扉':'🚧','安全・標識・その他':'🔒','その他部品・資材':'📦'
+};
+
+async function loadAll(){
+  let all=[],offset=0,limit=500;
+  while(true){
+    const r=await fetch(SUPA_URL+'/rest/v1/materials?select=*&order=id&offset='+offset+'&limit='+limit,{headers:HDRS});
+    const d=await r.json();
+    if(!d||!d.length)break;
+    all=all.concat(d);
+    if(d.length<limit)break;
+    offset+=limit;
+  }
+  return all;
+}
+
+function getCats(data){
+  const map={};
+  data.forEach(m=>{
+    const c=m.major_category||'未分類';
+    if(!map[c])map[c]=[];
+    map[c].push(m);
+  });
+  // Sort by count descending
+  return Object.entries(map).sort((a,b)=>b[1].length-a[1].length);
+}
+
+function countPrices(data){
+  let n=0;
+  data.forEach(m=>{if(m.price_history&&Array.isArray(m.price_history))n+=m.price_history.length;});
+  return n;
+}
+
+function renderStats(){
+  document.getElementById('statTotal').innerHTML=ALL.length+'<span>品目</span>';
+  const cats=getCats(ALL);
+  document.getElementById('statCats').innerHTML=cats.length+'<span>カテゴリ</span>';
+  document.getElementById('statPrices').innerHTML=countPrices(ALL)+'<span>価格レコード</span>';
+}
+
+function getFilteredBySearch(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  if(!q)return ALL;
+  return ALL.filter(m=>{
+    const txt=(m.product_name||'')+' '+(m.sub_category||'')+' '+(m.maker||'');
+    return txt.toLowerCase().includes(q);
+  });
+}
+
+let activeCat=null; // currently selected category for right-side list
+
+function renderList(){
+  const el=document.getElementById('itemList');
+  const data=getFilteredBySearch();
+  if(!data.length){el.innerHTML='<div style="padding:16px;color:var(--tx3);font-size:13px;text-align:center;">該当なし</div>';return;}
+
+  const cats=getCats(data);
+  let h='';
+
+  // Category groups (sorted by count, descending) — no sub-items in sidebar
+  cats.forEach(([catName,items])=>{
+    const icon=CAT_ICONS[catName]||'📁';
+    const isActive=activeCat===catName;
+    h+='<div class="sb-group">';
+    h+='<div class="sb-group-header'+(isActive?' open':'')+'" data-cat="'+catName+'">';
+    h+='<div class="sb-group-arrow">▶</div>';
+    h+='<div class="sb-group-icon">'+icon+'</div>';
+    h+='<div class="sb-group-name">'+catName+'</div>';
+    h+='<div class="sb-group-count">'+items.length+'</div>';
+    h+='</div>';
+    h+='</div>';
+  });
+
+  // "全て" at bottom
+  h+='<div class="sb-group">';
+  h+='<div class="sb-group-header'+(activeCat==='__all__'?' open':'')+'" data-cat="__all__">';
+  h+='<div class="sb-group-arrow">▶</div>';
+  h+='<div class="sb-group-icon">📋</div>';
+  h+='<div class="sb-group-name">全て</div>';
+  h+='<div class="sb-group-count">'+data.length+'</div>';
+  h+='</div>';
+  h+='</div>';
+
+  el.innerHTML=h;
+
+  // Event: click category → show list on right side
+  el.querySelectorAll('.sb-group-header').forEach(gh=>{
+    gh.onclick=()=>{
+      const cat=gh.dataset.cat;
+      activeCat=cat;
+      activeId=null;
+      history.pushState({view:'list',cat:cat},'','#cat='+encodeURIComponent(cat));
+      renderList();
+      showCatList(cat);
+    };
+  });
+}
+
+// Show item list on the RIGHT side (white area)
+function showCatList(catName){
+  const main=document.getElementById('mainContent');
+  const data=getFilteredBySearch();
+  let items;
+  let displayName;
+  let icon;
+  if(catName==='__all__'){
+    items=data;
+    displayName='全て';
+    icon='📋';
+  }else{
+    items=data.filter(m=>(m.major_category||'未分類')===catName);
+    displayName=catName;
+    icon=CAT_ICONS[catName]||'📁';
+  }
+
+  let h='<div class="list-header">';
+  h+='<div class="list-icon">'+icon+'</div>';
+  h+='<h2>'+displayName+'</h2>';
+  h+='<div class="list-count">'+items.length+' 品目</div>';
+  h+='</div>';
+
+  h+='<table class="rtable"><thead><tr>';
+  h+='<th>#</th><th>品名</th><th>サブカテゴリ</th><th>メーカー</th><th style="text-align:right">単価</th>';
+  h+='</tr></thead><tbody>';
+  items.forEach(m=>{
+    const price=m.unit_price!=null?'¥'+Number(m.unit_price).toLocaleString():'—';
+    h+='<tr data-id="'+m.id+'">';
+    h+='<td class="r-num">'+String(m.id).padStart(3,'0')+'</td>';
+    h+='<td class="r-name">'+m.product_name+'</td>';
+    h+='<td class="r-sub">'+(m.sub_category||'—')+'</td>';
+    h+='<td class="r-maker">'+(m.maker||'—')+'</td>';
+    h+='<td class="r-price">'+price+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+
+  main.innerHTML=h;
+  main.scrollTop=0;
+
+  // Click row → show detail
+  main.querySelectorAll('.rtable tbody tr').forEach(tr=>{
+    tr.onclick=()=>{
+      activeId=parseInt(tr.dataset.id);
+      history.pushState({view:'detail',id:activeId,cat:activeCat},'','#p'+activeId);
+      renderList();
+      showDetail(activeId);
+    };
+  });
+}
+
+// ========== SVG図解データ（ど素人向け） ==========
+// Helper: SVG box
+function _b(x,y,w,h,fill,stroke,sw){return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(sw||2)+'"/>';}
+function _t(x,y,txt,fill,sz,bold){return '<text x="'+x+'" y="'+y+'" fill="'+fill+'" font-size="'+(sz||10)+'" text-anchor="middle" font-family="sans-serif"'+(bold?' font-weight="bold"':'')+'>'+txt+'</text>';}
+function _a(x1,y1,x2,y2,col,dash){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+(col||'#69f0ae')+'" stroke-width="2"'+(dash?' stroke-dasharray="6,3"':'')+' marker-end="url(#ah)"/>';}
+const _AD='<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L8,3z" fill="#69f0ae"/></marker></defs>';
+
+function genSvgPlaceholder(m){
+  const cat=m.sub_category||m.major_category||'資材';
+  const name=(m.product_name||'').substring(0,24);
+  const major=m.major_category||'';
+  const S='http://www.w3.org/2000/svg';
+  const hd='<svg xmlns="'+S+'" width="400" height="280" viewBox="0 0 400 280"><rect width="400" height="280" fill="#161824"/>';
+  const ft='<text x="200" y="268" text-anchor="middle" fill="#7b80a0" font-size="9">'+cat+'</text></svg>';
+  const nm='<text x="200" y="252" text-anchor="middle" fill="#8b90a0" font-size="9">'+name+'</text>';
+
+  if(major==='電源機器（PCS・蓄電池）'){
+    // PCS: 箱型の機器、正面にディスプレイとファン
+    return hd
+    +'<rect x="110" y="35" width="180" height="170" rx="6" fill="#1e2133" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<rect x="125" y="50" width="150" height="60" rx="3" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="200" y="75" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">DC入力 → AC出力</text>'
+    +'<text x="200" y="93" text-anchor="middle" fill="#69f0ae" font-size="9">RUNNING ● 効率98.5%</text>'
+    +'<circle cx="155" cy="145" r="22" fill="#0d0f18" stroke="#8b90a0" stroke-width="1.5"/>'
+    +'<text x="155" y="150" text-anchor="middle" fill="#8b90a0" font-size="8">冷却FAN</text>'
+    +'<circle cx="200" cy="145" r="22" fill="#0d0f18" stroke="#8b90a0" stroke-width="1.5"/>'
+    +'<text x="200" y="150" text-anchor="middle" fill="#8b90a0" font-size="8">冷却FAN</text>'
+    +'<circle cx="245" cy="145" r="22" fill="#0d0f18" stroke="#8b90a0" stroke-width="1.5"/>'
+    +'<text x="245" y="150" text-anchor="middle" fill="#8b90a0" font-size="8">冷却FAN</text>'
+    +'<rect x="125" y="175" width="30" height="15" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1"/>'
+    +'<text x="140" y="186" text-anchor="middle" fill="#f5a623" font-size="7">DC端子</text>'
+    +'<rect x="245" y="175" width="30" height="15" rx="2" fill="#1a3020" stroke="#69f0ae" stroke-width="1"/>'
+    +'<text x="260" y="186" text-anchor="middle" fill="#69f0ae" font-size="7">AC端子</text>'
+    +'<text x="200" y="228" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="bold">パワーコンディショナ(PCS)</text>'
+    +'<text x="200" y="242" text-anchor="middle" fill="#8b90a0" font-size="9">太陽光の直流→交流に変換する機器</text>'
+    +nm+ft;
+  }
+  if(major==='パネル・モジュール'){
+    // 太陽光パネル: 斜めに設置されたパネル
+    return hd
+    +'<text x="200" y="25" text-anchor="middle" fill="#f5a623" font-size="14">☀</text>'
+    +'<line x1="200" y1="30" x2="170" y2="50" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<line x1="200" y1="30" x2="200" y2="50" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<line x1="200" y1="30" x2="230" y2="50" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<polygon points="70,55 330,55 310,150 90,150" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<line x1="110" y1="55" x2="100" y2="150" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="150" y1="55" x2="140" y2="150" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="190" y1="55" x2="180" y2="150" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="230" y1="55" x2="220" y2="150" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="270" y1="55" x2="260" y2="150" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="70" y1="85" x2="330" y2="85" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="78" y1="115" x2="320" y2="115" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="130" y1="150" x2="130" y2="195" stroke="#8b90a0" stroke-width="3"/>'
+    +'<line x1="270" y1="150" x2="270" y2="195" stroke="#8b90a0" stroke-width="3"/>'
+    +'<line x1="100" y1="185" x2="300" y2="185" stroke="#8b90a0" stroke-width="1.5"/>'
+    +'<rect x="90" y="195" width="220" height="8" rx="2" fill="#2a2a10" stroke="#8b90a0" stroke-width="1"/>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">太陽光パネル</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">架台に斜めに設置。セルが太陽光をDC電力に変換</text>'
+    +nm+ft;
+  }
+  if(major==='受配電・盤'){
+    // キュービクル: 大きな金属箱、ドアにメーターやスイッチ
+    return hd
+    +'<rect x="90" y="30" width="220" height="180" rx="4" fill="#1e2133" stroke="#69f0ae" stroke-width="2.5"/>'
+    +'<line x1="200" y1="30" x2="200" y2="210" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<rect x="110" y="50" width="70" height="40" rx="3" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="145" y="73" text-anchor="middle" fill="#4fc3f7" font-size="9">電力メーター</text>'
+    +'<rect x="110" y="100" width="30" height="20" rx="2" fill="#3a1010" stroke="#ff5252" stroke-width="1.5"/>'
+    +'<text x="125" y="114" text-anchor="middle" fill="#ff5252" font-size="7">遮断器</text>'
+    +'<rect x="150" y="100" width="30" height="20" rx="2" fill="#2a2a10" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="165" y="114" text-anchor="middle" fill="#f5a623" font-size="7">リレー</text>'
+    +'<rect x="110" y="130" width="70" height="30" rx="2" fill="#0d0f18" stroke="#8b90a0" stroke-width="1"/>'
+    +'<text x="145" y="149" text-anchor="middle" fill="#8b90a0" font-size="8">端子台・配線</text>'
+    +'<rect x="220" y="50" width="70" height="70" rx="3" fill="#0d0f18" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="255" y="80" text-anchor="middle" fill="#f5a623" font-size="9">高圧</text>'
+    +'<text x="255" y="93" text-anchor="middle" fill="#f5a623" font-size="9">開閉器</text>'
+    +'<text x="255" y="110" text-anchor="middle" fill="#8b90a0" font-size="8">6,600V</text>'
+    +'<rect x="220" y="130" width="70" height="30" rx="2" fill="#0d0f18" stroke="#8b90a0" stroke-width="1"/>'
+    +'<text x="255" y="149" text-anchor="middle" fill="#8b90a0" font-size="8">ケーブル引込</text>'
+    +'<circle cx="200" cy="190" r="5" fill="#69f0ae"/>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#69f0ae" font-size="11" font-weight="bold">受配電盤（キュービクル）</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">高圧を受けて分配する金属箱。中にメーター・遮断器等</text>'
+    +nm+ft;
+  }
+  if(major==='変圧器・トランス'){
+    // 変圧器: 四角い箱にコイル記号、高圧ブッシング
+    return hd
+    +'<rect x="100" y="50" width="200" height="140" rx="6" fill="#1e2133" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<rect x="130" y="30" width="15" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="175" y="30" width="15" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="220" y="30" width="15" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="200" y="22" text-anchor="middle" fill="#8b90a0" font-size="8">ブッシング（高圧端子）</text>'
+    +'<ellipse cx="170" cy="120" rx="25" ry="35" fill="none" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<ellipse cx="210" cy="120" rx="25" ry="35" fill="none" stroke="#f5a623" stroke-width="2"/>'
+    +'<text x="160" y="125" text-anchor="middle" fill="#4fc3f7" font-size="9">1次側</text>'
+    +'<text x="220" y="125" text-anchor="middle" fill="#f5a623" font-size="9">2次側</text>'
+    +'<text x="130" y="175" text-anchor="middle" fill="#4fc3f7" font-size="8">低圧IN</text>'
+    +'<text x="270" y="175" text-anchor="middle" fill="#f5a623" font-size="8">高圧OUT</text>'
+    +'<rect x="115" y="195" width="50" height="10" rx="2" fill="#0d0f18" stroke="#8b90a0" stroke-width="1"/>'
+    +'<text x="140" y="203" text-anchor="middle" fill="#8b90a0" font-size="7">銘板</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="bold">変圧器（トランス）</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">コイルの巻数比で電圧を昇圧/降圧する装置</text>'
+    +nm+ft;
+  }
+  if(major==='保護・ブレーカー'){
+    // ブレーカー: レバー付きの機器
+    return hd
+    +'<rect x="130" y="40" width="140" height="160" rx="6" fill="#1e2133" stroke="#ff5252" stroke-width="2.5"/>'
+    +'<rect x="155" y="55" width="90" height="30" rx="3" fill="#0d0f18" stroke="#ff5252" stroke-width="1.5"/>'
+    +'<text x="200" y="74" text-anchor="middle" fill="#ff5252" font-size="10" font-weight="bold">MCCB 50A</text>'
+    +'<rect x="180" y="95" width="40" height="50" rx="4" fill="#2a1a1a" stroke="#f5a623" stroke-width="2"/>'
+    +'<rect x="190" y="90" width="20" height="15" rx="3" fill="#f5a623"/>'
+    +'<text x="200" y="128" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="bold">ON</text>'
+    +'<text x="200" y="142" text-anchor="middle" fill="#8b90a0" font-size="7">レバー</text>'
+    +'<rect x="150" y="155" width="25" height="12" rx="2" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<text x="163" y="164" text-anchor="middle" fill="#4fc3f7" font-size="6">LINE</text>'
+    +'<rect x="225" y="155" width="25" height="12" rx="2" fill="#0d0f18" stroke="#69f0ae" stroke-width="1"/>'
+    +'<text x="238" y="164" text-anchor="middle" fill="#69f0ae" font-size="6">LOAD</text>'
+    +'<text x="200" y="185" text-anchor="middle" fill="#8b90a0" font-size="8">過電流で自動OFF</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#ff5252" font-size="11" font-weight="bold">ブレーカー（保護機器）</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">異常電流を検知→自動で電気を切る安全装置</text>'
+    +nm+ft;
+  }
+  if(major==='計測・センサー'){
+    // 日射計/気温計: ドーム型センサーとポール
+    return hd
+    +'<line x1="130" y1="50" x2="130" y2="180" stroke="#8b90a0" stroke-width="3"/>'
+    +'<rect x="115" y="180" width="30" height="15" rx="2" fill="#2a2a10" stroke="#8b90a0" stroke-width="1"/>'
+    +'<ellipse cx="130" cy="50" rx="30" ry="12" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<ellipse cx="130" cy="42" rx="20" ry="8" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="130" y="30" text-anchor="middle" fill="#f5a623" font-size="10">☀</text>'
+    +'<text x="130" y="78" text-anchor="middle" fill="#4fc3f7" font-size="9" font-weight="bold">日射計</text>'
+    +'<text x="130" y="92" text-anchor="middle" fill="#8b90a0" font-size="8">W/㎡を測定</text>'
+    +'<line x1="270" y1="60" x2="270" y2="180" stroke="#8b90a0" stroke-width="3"/>'
+    +'<rect x="255" y="180" width="30" height="15" rx="2" fill="#2a2a10" stroke="#8b90a0" stroke-width="1"/>'
+    +'<rect x="255" y="50" width="30" height="40" rx="4" fill="#1e2133" stroke="#69f0ae" stroke-width="2"/>'
+    +'<rect x="260" y="55" width="20" height="15" rx="2" fill="#0d0f18" stroke="#69f0ae" stroke-width="1"/>'
+    +'<text x="270" y="67" text-anchor="middle" fill="#69f0ae" font-size="8">25.3℃</text>'
+    +'<text x="270" y="108" text-anchor="middle" fill="#69f0ae" font-size="9" font-weight="bold">気温計</text>'
+    +'<text x="270" y="122" text-anchor="middle" fill="#8b90a0" font-size="8">℃を測定</text>'
+    +'<line x1="160" y1="55" x2="210" y2="100" stroke="#4fc3f7" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<line x1="240" y1="70" x2="210" y2="100" stroke="#69f0ae" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<rect x="185" y="100" width="50" height="30" rx="4" fill="#22263a" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="210" y="118" text-anchor="middle" fill="#f5a623" font-size="8">データ送信</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">計測センサー</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">日射量と気温を測定してデータをロガーへ送る</text>'
+    +nm+ft;
+  }
+  if(major==='ケーブル・電線'){
+    // ケーブル断面図: 芯線+絶縁+シース
+    return hd
+    +'<text x="200" y="35" text-anchor="middle" fill="#4fc3f7" font-size="10" font-weight="bold">ケーブルの断面イメージ</text>'
+    +'<circle cx="200" cy="110" r="65" fill="#1e2133" stroke="#8b90a0" stroke-width="2.5"/>'
+    +'<text x="200" y="185" text-anchor="middle" fill="#8b90a0" font-size="8">外装シース（保護層）</text>'
+    +'<circle cx="175" cy="95" r="22" fill="#0d0f18" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<circle cx="175" cy="95" r="10" fill="#f5a623"/>'
+    +'<circle cx="220" cy="95" r="22" fill="#0d0f18" stroke="#69f0ae" stroke-width="2"/>'
+    +'<circle cx="220" cy="95" r="10" fill="#f5a623"/>'
+    +'<circle cx="197" cy="130" r="22" fill="#0d0f18" stroke="#ff5252" stroke-width="2"/>'
+    +'<circle cx="197" cy="130" r="10" fill="#f5a623"/>'
+    +'<text x="175" y="75" text-anchor="middle" fill="#4fc3f7" font-size="7">絶縁体</text>'
+    +'<text x="200" y="155" text-anchor="middle" fill="#8b90a0" font-size="7">銅/アルミ導体</text>'
+    +'<rect x="80" y="50" width="15" height="120" rx="5" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<rect x="305" y="50" width="15" height="120" rx="5" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="55" y="115" text-anchor="middle" fill="#4fc3f7" font-size="8">機器A</text>'
+    +'<text x="345" y="115" text-anchor="middle" fill="#4fc3f7" font-size="8">機器B</text>'
+    +'<line x1="95" y1="110" x2="135" y2="110" stroke="#f5a623" stroke-width="2"/>'
+    +'<line x1="265" y1="110" x2="305" y2="110" stroke="#f5a623" stroke-width="2"/>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#4fc3f7" font-size="11" font-weight="bold">ケーブル</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">導体+絶縁+シースで電力や信号を安全に伝送</text>'
+    +nm+ft;
+  }
+  if(major==='端末材・接続部品'){
+    // 端子圧着: ケーブル先端に端子をかしめた図
+    return hd
+    +'<rect x="30" y="85" width="160" height="30" rx="12" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<text x="100" y="104" text-anchor="middle" fill="#4fc3f7" font-size="9">ケーブル（銅線が見えている）</text>'
+    +'<rect x="185" y="80" width="80" height="40" rx="4" fill="#22263a" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<circle cx="240" cy="100" r="10" fill="none" stroke="#f5a623" stroke-width="2"/>'
+    +'<text x="210" y="103" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="bold">端子</text>'
+    +'<text x="240" y="103" text-anchor="middle" fill="#f5a623" font-size="7">穴</text>'
+    +'<rect x="275" y="88" width="95" height="24" rx="3" fill="#1e2133" stroke="#69f0ae" stroke-width="2"/>'
+    +'<circle cx="310" cy="100" r="6" fill="none" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<circle cx="340" cy="100" r="6" fill="none" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<text x="325" y="125" text-anchor="middle" fill="#69f0ae" font-size="8">機器の端子台</text>'
+    +'<text x="200" y="55" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="bold">端子でケーブルと機器をつなぐ</text>'
+    +'<text x="110" y="145" text-anchor="middle" fill="#8b90a0" font-size="8">← ここを圧着工具で</text>'
+    +'<text x="110" y="157" text-anchor="middle" fill="#8b90a0" font-size="8">ガチッと固定 →</text>'
+    +'<text x="310" y="145" text-anchor="middle" fill="#8b90a0" font-size="8">← ボルトで締付</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="bold">端子・接続部品</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">ケーブル先端に端子を圧着→機器にボルト固定</text>'
+    +nm+ft;
+  }
+  if(major==='通信・監視・制御'){
+    // ロガー/通信機器: 箱型に接続ポート
+    return hd
+    +'<rect x="110" y="40" width="180" height="120" rx="6" fill="#1e2133" stroke="#b39ddb" stroke-width="2.5"/>'
+    +'<rect x="130" y="55" width="60" height="30" rx="3" fill="#0d0f18" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<text x="160" y="74" text-anchor="middle" fill="#69f0ae" font-size="8">STATUS</text>'
+    +'<circle cx="140" cy="60" r="3" fill="#69f0ae"/>'
+    +'<circle cx="155" cy="60" r="3" fill="#f5a623"/>'
+    +'<circle cx="170" cy="60" r="3" fill="#ff5252"/>'
+    +'<rect x="210" y="55" width="60" height="30" rx="3" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="240" y="74" text-anchor="middle" fill="#4fc3f7" font-size="8">DATA LOG</text>'
+    +'<rect x="130" y="100" width="20" height="15" rx="2" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<rect x="160" y="100" width="20" height="15" rx="2" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<rect x="190" y="100" width="20" height="15" rx="2" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<rect x="220" y="100" width="20" height="15" rx="2" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<rect x="250" y="100" width="20" height="15" rx="2" fill="#0d0f18" stroke="#b39ddb" stroke-width="1"/>'
+    +'<text x="200" y="140" text-anchor="middle" fill="#8b90a0" font-size="8">LAN  LAN  RS485  光   4G</text>'
+    +'<text x="200" y="152" text-anchor="middle" fill="#8b90a0" font-size="7">通信ポート群</text>'
+    +'<line x1="140" y1="165" x2="140" y2="185" stroke="#4fc3f7" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<text x="140" y="195" text-anchor="middle" fill="#4fc3f7" font-size="7">PCSから</text>'
+    +'<line x1="260" y1="165" x2="260" y2="185" stroke="#b39ddb" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<text x="260" y="195" text-anchor="middle" fill="#b39ddb" font-size="7">クラウドへ</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#b39ddb" font-size="11" font-weight="bold">監視・通信装置</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">PCSやセンサーのデータを集約→クラウドへ送信</text>'
+    +nm+ft;
+  }
+  if(major==='配管・ラック'){
+    // ケーブルラック: はしご状の構造にケーブルが通る
+    return hd
+    +'<text x="200" y="35" text-anchor="middle" fill="#69f0ae" font-size="10" font-weight="bold">ケーブルラック（はしご状）</text>'
+    +'<rect x="60" y="50" width="280" height="80" rx="4" fill="none" stroke="#69f0ae" stroke-width="2.5"/>'
+    +'<line x1="100" y1="50" x2="100" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<line x1="140" y1="50" x2="140" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<line x1="180" y1="50" x2="180" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<line x1="220" y1="50" x2="220" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<line x1="260" y1="50" x2="260" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<line x1="300" y1="50" x2="300" y2="130" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<rect x="75" y="65" width="250" height="10" rx="5" fill="#f5a623" opacity="0.8"/>'
+    +'<rect x="75" y="80" width="250" height="10" rx="5" fill="#4fc3f7" opacity="0.6"/>'
+    +'<rect x="75" y="95" width="250" height="10" rx="5" fill="#ff5252" opacity="0.5"/>'
+    +'<rect x="75" y="110" width="250" height="10" rx="5" fill="#b39ddb" opacity="0.5"/>'
+    +'<text x="360" y="73" text-anchor="start" fill="#f5a623" font-size="7">電力ケーブル</text>'
+    +'<text x="360" y="88" text-anchor="start" fill="#4fc3f7" font-size="7">制御ケーブル</text>'
+    +'<text x="360" y="103" text-anchor="start" fill="#ff5252" font-size="7">高圧ケーブル</text>'
+    +'<text x="360" y="118" text-anchor="start" fill="#b39ddb" font-size="7">通信ケーブル</text>'
+    +'<line x1="130" y1="130" x2="130" y2="170" stroke="#8b90a0" stroke-width="3"/>'
+    +'<line x1="270" y1="130" x2="270" y2="170" stroke="#8b90a0" stroke-width="3"/>'
+    +'<text x="200" y="188" text-anchor="middle" fill="#8b90a0" font-size="8">支柱で支えて空中にケーブルの道路を作る</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#69f0ae" font-size="11" font-weight="bold">配管・ケーブルラック</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">大量のケーブルを整理して安全に通す「道路」</text>'
+    +nm+ft;
+  }
+  if(major==='架台・基礎'){
+    // 架台: 地面に杭、斜めにパネル
+    return hd
+    +'<text x="200" y="22" text-anchor="middle" fill="#f5a623" font-size="12">☀ 太陽光</text>'
+    +'<polygon points="60,40 340,40 320,110 80,110" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<text x="200" y="80" text-anchor="middle" fill="#4fc3f7" font-size="10">太陽光パネル（斜め約10〜20°）</text>'
+    +'<line x1="100" y1="110" x2="100" y2="165" stroke="#f5a623" stroke-width="4"/>'
+    +'<line x1="200" y1="110" x2="200" y2="165" stroke="#f5a623" stroke-width="4"/>'
+    +'<line x1="300" y1="110" x2="300" y2="165" stroke="#f5a623" stroke-width="4"/>'
+    +'<line x1="80" y1="140" x2="320" y2="140" stroke="#f5a623" stroke-width="2"/>'
+    +'<line x1="80" y1="155" x2="320" y2="155" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="50" y="150" text-anchor="middle" fill="#f5a623" font-size="8">架台</text>'
+    +'<rect x="60" y="165" width="280" height="15" rx="2" fill="#2a2a10" stroke="#8b90a0" stroke-width="1.5"/>'
+    +'<text x="200" y="175" text-anchor="middle" fill="#8b90a0" font-size="8">地面 (GL)</text>'
+    +'<rect x="95" y="175" width="10" height="30" rx="1" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="195" y="175" width="10" height="30" rx="1" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="295" y="175" width="10" height="30" rx="1" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="200" y="218" text-anchor="middle" fill="#f5a623" font-size="8">基礎杭（地中に打込み固定）</text>'
+    +'<text x="200" y="237" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="bold">架台・基礎</text>'
+    +'<text x="200" y="250" text-anchor="middle" fill="#8b90a0" font-size="9">パネルを斜めに支え地面に固定する骨組み</text>'
+    +ft;
+  }
+  if(major==='金物・ボルト・鋼材'){
+    // ボルト&ナット、L字金具
+    return hd
+    +'<rect x="60" y="50" width="80" height="130" rx="4" fill="#1e2133" stroke="#f5a623" stroke-width="2"/>'
+    +'<circle cx="100" cy="85" r="18" fill="#0d0f18" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<circle cx="100" cy="85" r="8" fill="none" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="100" y="89" text-anchor="middle" fill="#f5a623" font-size="8">M16</text>'
+    +'<rect x="85" y="110" width="30" height="15" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<text x="100" y="121" text-anchor="middle" fill="#f5a623" font-size="7">ナット</text>'
+    +'<text x="100" y="150" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="bold">ボルト</text>'
+    +'<text x="100" y="163" text-anchor="middle" fill="#8b90a0" font-size="8">締結の基本</text>'
+    +'<rect x="180" y="50" width="30" height="100" rx="2" fill="#1e2133" stroke="#69f0ae" stroke-width="2"/>'
+    +'<rect x="180" y="120" width="80" height="30" rx="2" fill="#1e2133" stroke="#69f0ae" stroke-width="2"/>'
+    +'<circle cx="195" cy="70" r="5" fill="none" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<circle cx="240" cy="135" r="5" fill="none" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<text x="215" y="165" text-anchor="middle" fill="#69f0ae" font-size="9" font-weight="bold">L字金具</text>'
+    +'<text x="215" y="178" text-anchor="middle" fill="#8b90a0" font-size="8">構造物の接合</text>'
+    +'<rect x="290" y="60" width="60" height="80" rx="3" fill="#1e2133" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<line x1="300" y1="70" x2="340" y2="70" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<line x1="300" y1="85" x2="340" y2="85" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<line x1="300" y1="100" x2="340" y2="100" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<line x1="300" y1="115" x2="340" y2="115" stroke="#4fc3f7" stroke-width="1"/>'
+    +'<text x="320" y="155" text-anchor="middle" fill="#4fc3f7" font-size="9" font-weight="bold">鋼材</text>'
+    +'<text x="320" y="168" text-anchor="middle" fill="#8b90a0" font-size="8">骨組みに使用</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#f5a623" font-size="11" font-weight="bold">金物・ボルト・鋼材</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">構造物を固定・接合する金属部品</text>'
+    +nm+ft;
+  }
+  if(major==='フェンス・門扉'){
+    // フェンス: メッシュ柵と門
+    return hd
+    +'<line x1="50" y1="190" x2="350" y2="190" stroke="#2a2a10" stroke-width="3"/>'
+    +'<line x1="80" y1="60" x2="80" y2="190" stroke="#69f0ae" stroke-width="3"/>'
+    +'<line x1="160" y1="60" x2="160" y2="190" stroke="#69f0ae" stroke-width="3"/>'
+    +'<line x1="240" y1="60" x2="240" y2="190" stroke="#69f0ae" stroke-width="3"/>'
+    +'<line x1="320" y1="60" x2="320" y2="190" stroke="#69f0ae" stroke-width="3"/>'
+    +'<line x1="80" y1="80" x2="160" y2="80" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="80" y1="100" x2="160" y2="100" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="80" y1="120" x2="160" y2="120" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="80" y1="140" x2="160" y2="140" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="80" y1="160" x2="160" y2="160" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="100" y1="60" x2="100" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="120" y1="60" x2="120" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="140" y1="60" x2="140" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<rect x="165" y="60" width="70" height="130" rx="2" fill="#1e2133" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<circle cx="225" cy="130" r="5" fill="#f5a623"/>'
+    +'<text x="200" y="100" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="bold">門扉</text>'
+    +'<text x="200" y="115" text-anchor="middle" fill="#8b90a0" font-size="8">🔒施錠</text>'
+    +'<line x1="240" y1="80" x2="320" y2="80" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="240" y1="100" x2="320" y2="100" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="240" y1="120" x2="320" y2="120" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="240" y1="140" x2="320" y2="140" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="240" y1="160" x2="320" y2="160" stroke="#69f0ae" stroke-width="1"/>'
+    +'<line x1="260" y1="60" x2="260" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="280" y1="60" x2="280" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="300" y1="60" x2="300" y2="190" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<text x="120" y="50" text-anchor="middle" fill="#69f0ae" font-size="9" font-weight="bold">フェンス</text>'
+    +'<text x="280" y="50" text-anchor="middle" fill="#69f0ae" font-size="9" font-weight="bold">フェンス</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#69f0ae" font-size="11" font-weight="bold">フェンス・門扉</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">発電所敷地を囲うメッシュ柵と施錠付き出入口</text>'
+    +nm+ft;
+  }
+  if(major==='安全・標識・その他'){
+    // 標識、消火器、照明
+    return hd
+    +'<rect x="60" y="50" width="100" height="70" rx="4" fill="#3a1010" stroke="#ff5252" stroke-width="2.5"/>'
+    +'<text x="110" y="75" text-anchor="middle" fill="#ff5252" font-size="12" font-weight="bold">⚠ 高圧危険</text>'
+    +'<text x="110" y="92" text-anchor="middle" fill="#ff5252" font-size="9">6,600V</text>'
+    +'<text x="110" y="108" text-anchor="middle" fill="#ff5252" font-size="8">関係者以外</text>'
+    +'<text x="110" y="118" text-anchor="middle" fill="#ff5252" font-size="8">立入禁止</text>'
+    +'<text x="110" y="143" text-anchor="middle" fill="#ff5252" font-size="9" font-weight="bold">法定標識</text>'
+    +'<rect x="200" y="50" width="40" height="100" rx="6" fill="#1e2133" stroke="#ff5252" stroke-width="2"/>'
+    +'<rect x="205" y="55" width="30" height="15" rx="3" fill="#ff5252"/>'
+    +'<text x="220" y="65" text-anchor="middle" fill="#fff" font-size="7">消火</text>'
+    +'<rect x="210" y="100" width="20" height="45" rx="2" fill="#3a1010" stroke="#ff5252" stroke-width="1"/>'
+    +'<text x="220" y="165" text-anchor="middle" fill="#ff5252" font-size="9" font-weight="bold">消火器</text>'
+    +'<line x1="310" y1="60" x2="310" y2="140" stroke="#8b90a0" stroke-width="3"/>'
+    +'<rect x="290" y="40" width="40" height="25" rx="4" fill="#2a2a10" stroke="#f5a623" stroke-width="2"/>'
+    +'<text x="310" y="56" text-anchor="middle" fill="#f5a623" font-size="9">💡LED</text>'
+    +'<line x1="300" y1="65" x2="280" y2="85" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<line x1="320" y1="65" x2="340" y2="85" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<line x1="310" y1="65" x2="310" y2="85" stroke="#f5a623" stroke-width="1" stroke-dasharray="3,2"/>'
+    +'<text x="310" y="165" text-anchor="middle" fill="#f5a623" font-size="9" font-weight="bold">照明</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#ff5252" font-size="11" font-weight="bold">安全・標識・その他</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">法律で設置義務のある安全設備・標識・照明</text>'
+    +nm+ft;
+  }
+  if(major==='その他部品・資材'){
+    // DINレール、コンセント、タップ
+    return hd
+    +'<rect x="60" y="50" width="280" height="120" rx="6" fill="#1e2133" stroke="#8b90a0" stroke-width="2"/>'
+    +'<text x="200" y="42" text-anchor="middle" fill="#8b90a0" font-size="9">盤の中身イメージ</text>'
+    +'<rect x="80" y="65" width="240" height="12" rx="3" fill="#3a2510" stroke="#f5a623" stroke-width="2"/>'
+    +'<text x="200" y="74" text-anchor="middle" fill="#f5a623" font-size="7" font-weight="bold">DINレール（取付レール）</text>'
+    +'<rect x="90" y="82" width="40" height="30" rx="3" fill="#0d0f18" stroke="#ff5252" stroke-width="1.5"/>'
+    +'<text x="110" y="100" text-anchor="middle" fill="#ff5252" font-size="7">ブレーカ</text>'
+    +'<rect x="140" y="82" width="40" height="30" rx="3" fill="#0d0f18" stroke="#69f0ae" stroke-width="1.5"/>'
+    +'<text x="160" y="100" text-anchor="middle" fill="#69f0ae" font-size="7">リレー</text>'
+    +'<rect x="190" y="82" width="40" height="30" rx="3" fill="#0d0f18" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<text x="210" y="100" text-anchor="middle" fill="#4fc3f7" font-size="7">端子台</text>'
+    +'<rect x="240" y="82" width="40" height="30" rx="3" fill="#0d0f18" stroke="#b39ddb" stroke-width="1.5"/>'
+    +'<text x="260" y="100" text-anchor="middle" fill="#b39ddb" font-size="7">スイッチ</text>'
+    +'<rect x="80" y="125" width="120" height="20" rx="3" fill="#0d0f18" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<circle cx="100" cy="135" r="5" fill="none" stroke="#f5a623" stroke-width="1"/>'
+    +'<circle cx="120" cy="135" r="5" fill="none" stroke="#f5a623" stroke-width="1"/>'
+    +'<circle cx="140" cy="135" r="5" fill="none" stroke="#f5a623" stroke-width="1"/>'
+    +'<circle cx="160" cy="135" r="5" fill="none" stroke="#f5a623" stroke-width="1"/>'
+    +'<circle cx="180" cy="135" r="5" fill="none" stroke="#f5a623" stroke-width="1"/>'
+    +'<text x="135" y="158" text-anchor="middle" fill="#f5a623" font-size="8">コンセントバー</text>'
+    +'<text x="200" y="225" text-anchor="middle" fill="#8b90a0" font-size="11" font-weight="bold">その他部品・消耗品</text>'
+    +'<text x="200" y="239" text-anchor="middle" fill="#8b90a0" font-size="9">DINレール・端子台・コンセント等の補助部品</text>'
+    +nm+ft;
+  }
+  // フォールバック（未対応カテゴリ）
+  const icon=CAT_ICONS[major]||'📦';
+  return hd
+  +'<rect x="100" y="40" width="200" height="160" rx="8" fill="#1e2133" stroke="#f5a623" stroke-width="2"/>'
+  +'<text x="200" y="100" text-anchor="middle" fill="#f5a623" font-size="20">'+icon+'</text>'
+  +'<text x="200" y="130" text-anchor="middle" fill="#f5a623" font-size="12" font-weight="bold">'+cat+'</text>'
+  +'<text x="200" y="155" text-anchor="middle" fill="#8b90a0" font-size="9">'+name+'</text>'
+  +'<text x="200" y="225" text-anchor="middle" fill="#8b90a0" font-size="10">太陽光発電所で使用される資材</text>'
+  +ft;
+}
+
+// major_category → {title,desc,subdesc{},svg(name)} の辞書
+const ROLE_SVG={
+'電源機器（PCS・蓄電池）':{
+  title:'{name}の役割 — 直流を交流に変えて送り出す',
+  desc:'太陽光パネルが作るDC（直流）を、家庭や工場で使えるAC（交流）に変換し、電力会社の系統へ送り出す「発電所の心臓部」。',
+  subdesc:{
+    'PCS':'Power Conditioning System（パワコン）。太陽光の直流電力を交流に変換する中核装置。発電所に数十台並ぶ最重要機器。',
+    'LC':'Line Conditioner。PCSと同じくDC→AC変換を行う装置。メーカー（SUNGROW等）による呼称違い。PCS・冷却・消火を統合管理。',
+    'PCS周辺機器':'PCS本体と組み合わせて使う補助機器。通信ボード・冷却ファン・フィルターなど。',
+    'UPS':'Uninterruptible Power Supply（無停電電源装置）。停電しても監視装置や制御装置の電源を維持する「最後の砦」。',
+    '蓄電システム':'発電した電力を一時的に蓄えて、需要が高い時間帯に放電する。電力の需給バランス調整に使用。',
+    '電源ユニット':'監視カメラ・通信装置などの小型機器に安定した電力を供給する小型電源。',
+    '電源機器（ACアダプタ）':'AC（交流）をDC（直流）に変換して、センサーや通信機器に電源を供給するアダプタ。',
+    '電源機器（PCS）':'PCS本体。太陽光パネル→DCケーブル→PCS→ACケーブル→変圧器の流れでAC電力を生成。',
+    '電源機器（UPS）':'無停電電源装置。内蔵バッテリーで停電時もシステムを守る。監視・制御の生命線。',
+    '電源機器（蓄電池）':'蓄電池本体。電力を化学エネルギーとして蓄え、必要な時に電気として放電する。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(10,50,90,70,'#1a2a40','#4fc3f7')
+    +_t(55,80,'☀ 太陽光パネル','#4fc3f7',10,true)
+    +_t(55,97,'DC（直流）発電','#8b90a0',9)
+    +'<line x1="100" y1="85" x2="145" y2="85" stroke="#4fc3f7" stroke-width="2" marker-end="url(#ah)"/>'
+    +_t(123,78,'DC','#4fc3f7',9)
+    +_b(150,40,130,90,'#3a2510','#f5a623',3)
+    +_t(215,72,name||'PCS','#f5a623',13,true)
+    +_t(215,90,'DC → AC 変換','#f5a623',10)
+    +_t(215,108,'（パワーコンディショナ）','#8b90a0',8)
+    +'<line x1="280" y1="85" x2="320" y2="85" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_t(300,78,'AC','#69f0ae',9)
+    +_b(325,50,65,70,'#1a3020','#69f0ae')
+    +_t(358,80,'変圧器','#69f0ae',10,true)
+    +_t(358,96,'昇圧','#8b90a0',9)
+    +'<line x1="390" y1="85" x2="420" y2="85" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_b(425,55,45,60,'#1a2040','#b39ddb')
+    +_t(448,82,'電力','#b39ddb',9,true)
+    +_t(448,96,'系統','#b39ddb',9)
+    +_t(240,160,'▲ 太陽光の直流電力を交流に変換して電力会社の送電網へ送り出す','#8b90a0',9)
+    +'</svg>';
+  }
+},
+'パネル・モジュール':{
+  title:'太陽光パネルの役割 — 光をそのまま電気に変える',
+  desc:'太陽の光エネルギーをシリコン半導体で直接DC電力に変換する。発電の出発点となる最重要部品。何千枚も並べて発電所を構成する。',
+  subdesc:{},
+  svg:function(){
+    return '<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(60,25,'☀','#f5a623',28)
+    +'<line x1="60" y1="35" x2="60" y2="55" stroke="#f5a623" stroke-width="2" stroke-dasharray="4,2"/>'
+    +'<line x1="40" y1="40" x2="60" y2="55" stroke="#f5a623" stroke-width="1.5" stroke-dasharray="4,2"/>'
+    +'<line x1="80" y1="40" x2="60" y2="55" stroke="#f5a623" stroke-width="1.5" stroke-dasharray="4,2"/>'
+    +_t(60,50,'光エネルギー','#f5a623',8)
+    +'<rect x="15" y="60" width="90" height="60" rx="4" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<line x1="15" y1="80" x2="105" y2="80" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="45" y1="60" x2="45" y2="120" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="75" y1="60" x2="75" y2="120" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +_t(60,105,'太陽光パネル','#4fc3f7',9,true)
+    +'<line x1="105" y1="90" x2="155" y2="90" stroke="#4fc3f7" stroke-width="2" marker-end="url(#ah)"/>'
+    +_t(130,84,'DC電力','#4fc3f7',8)
+    +_b(160,65,80,50,'#22263a','#f5a623')
+    +_t(200,87,'ストリング接続','#f5a623',9,true)
+    +_t(200,100,'（直列でまとめる）','#8b90a0',8)
+    +'<line x1="240" y1="90" x2="290" y2="90" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_b(295,65,75,50,'#1a3020','#69f0ae')
+    +_t(333,87,'集電箱','#69f0ae',9,true)
+    +_t(333,100,'（DCまとめ）','#8b90a0',8)
+    +'<line x1="370" y1="90" x2="410" y2="90" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_b(415,70,55,40,'#3a2510','#f5a623')
+    +_t(443,93,'PCSへ','#f5a623',10,true)
+    +_t(240,160,'▲ 何千枚ものパネルを直列・並列に接続し、集電箱でまとめてPCSへ送る','#8b90a0',9)
+    +'</svg>';
+  }
+},
+'受配電・盤':{
+  title:'{name}の役割 — 電気の「交通整理」をする司令塔',
+  desc:'電力会社の高圧電力（6,600V）を受け入れ、ブレーカーや保護リレーで安全を確保しながら、発電所内の各設備へ電気を分配する。',
+  subdesc:{
+    '受配電設備':'高圧電力の受電から各機器への配電までを一括で行う設備。遮断器・計器・リレーを内蔵した発電所の「電気の司令塔」。',
+    '受配電盤':'高圧受電と配電を行う盤。遮断器・計測器・保護リレーを収納。電力の入口から出口までを一元管理。',
+    '受変電設備':'高圧を受けて変圧し、所内の各設備へ適切な電圧で供給する設備一式。',
+    '配電盤／キュービクル':'キュービクル＝「箱型」の受変電設備。屋外に置ける金属箱の中に高圧機器を安全に格納。コンパクトで工事しやすい。',
+    '盤':'制御装置や配線を収納する金属ボックス。盤の中にブレーカーや端子台が並ぶ。現場では「盤（ばん）」と呼ぶ。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(10,45,80,55,'#1a2040','#b39ddb')
+    +_t(50,68,'電力会社','#b39ddb',10,true)
+    +_t(50,83,'系統 6.6kV','#b39ddb',9)
+    +'<line x1="90" y1="72" x2="140" y2="72" stroke="#b39ddb" stroke-width="3" marker-end="url(#ah)"/>'
+    +_t(115,65,'高圧','#b39ddb',8)
+    +_b(145,30,160,110,'#22263a','#f5a623',3)
+    +_t(225,52,name||'受配電盤','#f5a623',12,true)
+    +'<rect x="160" y="60" width="50" height="25" rx="3" fill="#2a1a1a" stroke="#ff5252" stroke-width="1.5"/>'
+    +_t(185,76,'遮断器','#ff5252',8)
+    +'<rect x="220" y="60" width="50" height="25" rx="3" fill="#1a2a20" stroke="#69f0ae" stroke-width="1.5"/>'
+    +_t(245,76,'計測器','#69f0ae',8)
+    +'<rect x="160" y="95" width="50" height="25" rx="3" fill="#2a2a10" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(185,111,'リレー','#f5a623',8)
+    +'<rect x="220" y="95" width="50" height="25" rx="3" fill="#1a1a2a" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +_t(245,111,'開閉器','#4fc3f7',8)
+    +'<line x1="305" y1="55" x2="350" y2="40" stroke="#69f0ae" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +'<line x1="305" y1="72" x2="350" y2="72" stroke="#69f0ae" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +'<line x1="305" y1="90" x2="350" y2="105" stroke="#69f0ae" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +_b(355,25,80,30,'#1a3020','#69f0ae')
+    +_t(395,44,'PCS群','#69f0ae',9,true)
+    +_b(355,60,80,30,'#1a3020','#69f0ae')
+    +_t(395,79,'変圧器','#69f0ae',9,true)
+    +_b(355,95,80,30,'#1a3020','#69f0ae')
+    +_t(395,114,'監視装置','#69f0ae',9,true)
+    +_t(240,160,'▲ 高圧電力を受けて安全に分配する「電気の交通整理」。中にはブレーカー・リレー等が詰まっている','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'変圧器・トランス':{
+  title:'変圧器の役割 — 電圧を「上げ下げ」する装置',
+  desc:'PCSの出力電圧（数百V）を電力系統の電圧（6,600V）に昇圧する。電圧を変換することで長距離送電のロスを減らす重要機器。',
+  subdesc:{},
+  svg:function(){
+    return '<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(10,50,90,65,'#1a2a40','#4fc3f7')
+    +_t(55,75,'PCS出力','#4fc3f7',10,true)
+    +_t(55,92,'AC 数百V','#4fc3f7',9)
+    +_t(55,106,'（低圧側）','#8b90a0',8)
+    +'<line x1="100" y1="82" x2="150" y2="82" stroke="#4fc3f7" stroke-width="2" marker-end="url(#ah)"/>'
+    +_b(155,30,150,120,'#22263a','#f5a623',3)
+    +'<ellipse cx="210" cy="82" rx="20" ry="30" fill="none" stroke="#f5a623" stroke-width="2"/>'
+    +'<ellipse cx="240" cy="82" rx="20" ry="30" fill="none" stroke="#f5a623" stroke-width="2"/>'
+    +_t(225,35,'変圧器（トランス）','#f5a623',10,true)
+    +_t(225,140,'コイルの巻数比で','#8b90a0',8)
+    +_t(225,152,'電圧を変換','#8b90a0',8)
+    +'<line x1="305" y1="82" x2="345" y2="82" stroke="#69f0ae" stroke-width="3" marker-end="url(#ah)"/>'
+    +_t(325,75,'昇圧','#69f0ae',9,true)
+    +_b(350,50,110,65,'#1a3020','#69f0ae')
+    +_t(405,75,'電力系統へ','#69f0ae',10,true)
+    +_t(405,92,'AC 6,600V','#69f0ae',9)
+    +_t(405,106,'（高圧側）','#8b90a0',8)
+    +_t(240,175,'▲ 低い電圧を高い電圧に変換（昇圧）して電力会社の送電網に送り出す','#8b90a0',9)
+    +'</svg>';
+  }
+},
+'保護・ブレーカー':{
+  title:'{name}の役割 — 異常を検知して電気を止める「番人」',
+  desc:'過電流・短絡（ショート）・漏電などの異常を検知したら自動で電気を遮断し、機器と人の安全を守る。消防の火災報知器の電気版。',
+  subdesc:{
+    'ヒューズ／保護部品':'過電流で内部金属が溶けて回路を切る「使い切り型」保護部品。1回で交換が必要だが、確実に守れる最もシンプルな安全装置。',
+    'ブレーカー／保護機器':'異常時に自動で遮断し、復旧後にレバーを戻せば再使用できるスイッチ型保護装置。家のブレーカーの産業版。',
+    '開閉器・ブレーカー':'回路のON/OFFスイッチと過電流保護を兼ねる装置。作業時の安全確保にも使用。',
+    '開閉器アクセサリ':'開閉器に追加する補助部品。遠隔操作用の電動コイルや状態表示用の補助接点など。',
+    '制御・保護リレー':'過電流・地絡・過電圧などの異常を検知して遮断器に「切れ！」と指令を出す監視装置。電力会社の連系要件で設置必須。',
+    '漏電ブレーカー':'漏電（電気漏れ）を検知して即座にOFF。感電や火災を防ぐ。人命に直結する安全装置。',
+    '漏電リレー':'漏電電流をセンサーで検知し、ブレーカーに遮断信号を送る監視装置。ブレーカーとセットで使用。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(130,18,'【正常時】','#69f0ae',10,true)
+    +_b(20,28,80,35,'#1a2a40','#4fc3f7')
+    +_t(60,50,'PCS','#4fc3f7',10,true)
+    +'<line x1="100" y1="45" x2="140" y2="45" stroke="#69f0ae" stroke-width="3"/>'
+    +_t(120,40,'電気','#69f0ae',8)
+    +_b(145,28,90,35,'#22263a','#69f0ae')
+    +_t(190,45,name||'ブレーカー','#69f0ae',9,true)
+    +_t(190,57,'(監視中 ✓)','#69f0ae',8)
+    +'<line x1="235" y1="45" x2="275" y2="45" stroke="#69f0ae" stroke-width="3" marker-end="url(#ah)"/>'
+    +_b(280,28,80,35,'#1a3020','#69f0ae')
+    +_t(320,50,'系統へ','#69f0ae',10,true)
+    +_t(130,90,'【異常発生！（過電流・漏電・短絡）】','#ff5252',10,true)
+    +_b(20,100,80,35,'#1a2a40','#4fc3f7')
+    +_t(60,122,'PCS','#4fc3f7',10,true)
+    +'<line x1="100" y1="117" x2="140" y2="117" stroke="#ff5252" stroke-width="3"/>'
+    +_t(120,112,'⚡異常!','#ff5252',8,true)
+    +_b(145,100,90,35,'#3a1010','#ff5252',3)
+    +_t(190,117,name||'ブレーカー','#ff5252',9,true)
+    +_t(190,129,'🛑 即遮断!','#ff5252',8,true)
+    +'<line x1="235" y1="117" x2="275" y2="117" stroke="#8b90a0" stroke-width="1.5" stroke-dasharray="6,3"/>'
+    +_t(320,120,'✅ 系統を保護','#8b90a0',9)
+    +_t(240,165,'▲ 正常時は電気を通し、異常を検知したら自動で遮断して設備と人を守る','#8b90a0',9)
+    +'</svg>';
+  }
+},
+'計測・センサー':{
+  title:'{name}の役割 — 発電所の「健康診断装置」',
+  desc:'日射量・気温・発電量・電圧/電流などを常時計測しデータ化。発電効率の分析や異常の早期発見に不可欠な「発電所の五感」。',
+  subdesc:{
+    'メーター／計測機器':'電力量・電圧・電流を数値で表示・記録する計測器。発電量の把握と売電量の確認に必須。',
+    '気温計':'発電所の気温を測定。パネルは高温で効率が下がるため、気温データは発電量の分析に不可欠。',
+    '計測・表示装置':'計測データを画面に表示し、事務所やクラウドからも確認できるようにする表示端末。',
+    '日射計':'太陽光の強さ（W/㎡）を測定するセンサー。「今日どれだけ光が当たったか」＝発電量予測の基礎データ。',
+    '日射計取付台':'日射計を正しい角度・位置に設置するための架台。パネルと同じ角度に設置して正確な計測を行う。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 170" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(55,20,'☀','#f5a623',20)
+    +_b(20,35,70,40,'#2a2a10','#f5a623')
+    +_t(55,55,'日射計','#f5a623',9,true)
+    +_t(55,68,'W/㎡を計測','#8b90a0',7)
+    +_b(20,85,70,40,'#1a2a30','#4fc3f7')
+    +_t(55,105,'気温計','#4fc3f7',9,true)
+    +_t(55,118,'℃を計測','#8b90a0',7)
+    +'<line x1="90" y1="55" x2="140" y2="80" stroke="#f5a623" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +'<line x1="90" y1="105" x2="140" y2="90" stroke="#4fc3f7" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +_b(145,55,120,55,'#22263a','#69f0ae',2)
+    +_t(205,77,'データロガー','#69f0ae',10,true)
+    +_t(205,93,'（データ集約装置）','#8b90a0',8)
+    +'<line x1="265" y1="82" x2="310" y2="82" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_b(315,60,70,45,'#1a2040','#b39ddb')
+    +_t(350,80,'☁ クラウド','#b39ddb',9,true)
+    +_t(350,95,'遠隔監視','#8b90a0',8)
+    +_b(400,60,70,45,'#1a3020','#69f0ae')
+    +_t(435,80,'📊 分析','#69f0ae',9,true)
+    +_t(435,95,'効率チェック','#8b90a0',8)
+    +_t(240,155,'▲ 日射量・気温・電力量を計測してクラウドへ送信。発電効率を常時監視する「発電所の五感」','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'ケーブル・電線':{
+  title:'{name}の役割 — 発電所の「血管」',
+  desc:'パネル→PCS→変圧器→電力系統の全経路で、電力や制御信号を安全に伝送する。用途ごとにDCケーブル・高圧ケーブル・光ケーブル等がある。',
+  subdesc:{
+    'LANケーブル':'監視装置・ロガー・ルーター間のデータ通信用。オフィスで使うLANケーブルと同じ規格。',
+    'USBケーブル':'PCSやロガーの設定・ファームウェア更新に使用する汎用ケーブル。',
+    'ケーブル':'電力や信号を伝送する一般的なケーブルの総称。',
+    'ケーブル類':'複数種のケーブルをまとめた呼称。電力ケーブル・制御ケーブル・通信ケーブル等を含む。',
+    '光ケーブル':'光ファイバーで大容量データを高速・長距離伝送。監視系統の通信幹線として使用。ノイズに強い。',
+    '高圧ケーブル':'6,600V等の高圧電力を流す特殊絶縁ケーブル。変圧器→配電盤→電力系統間で使用。太くて重い。',
+    '制御ケーブル':'機器間のON/OFFや状態信号を伝える細めのケーブル。「脳からの指令」を送る神経のような役割。',
+    '電力ケーブル':'大電流を流す太いケーブル。PCS→変圧器間などメイン電力ルートで使用。発電所で最も大量に使われる。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 170" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(10,20,75,40,'#1a2a40','#4fc3f7')
+    +_t(48,38,'パネル','#4fc3f7',9,true)
+    +_t(48,50,'DC発電','#8b90a0',8)
+    +'<rect x="90" y="33" width="70" height="14" rx="7" fill="#3a2510" stroke="#f5a623" stroke-width="2"/>'
+    +_t(125,43,'DCケーブル','#f5a623',7,true)
+    +_b(165,20,70,40,'#22263a','#69f0ae')
+    +_t(200,38,'PCS','#69f0ae',9,true)
+    +_t(200,50,'DC→AC','#8b90a0',8)
+    +'<rect x="240" y="33" width="75" height="14" rx="7" fill="#3a2510" stroke="#f5a623" stroke-width="2"/>'
+    +_t(278,43,'ACケーブル','#f5a623',7,true)
+    +_b(320,20,70,40,'#22263a','#69f0ae')
+    +_t(355,38,'変圧器','#69f0ae',9,true)
+    +_t(355,50,'昇圧','#8b90a0',8)
+    +'<rect x="395" y="33" width="75" height="14" rx="7" fill="#2a1020" stroke="#ff5252" stroke-width="2"/>'
+    +_t(433,43,'高圧ケーブル','#ff5252',7,true)
+    +_b(10,80,75,40,'#22263a','#69f0ae')
+    +_t(48,98,'PCS','#69f0ae',9,true)
+    +_t(48,110,'センサー','#8b90a0',8)
+    +'<rect x="90" y="93" width="70" height="14" rx="7" fill="#1a2a30" stroke="#4fc3f7" stroke-width="2"/>'
+    +_t(125,103,'制御ケーブル','#4fc3f7',7,true)
+    +_b(165,80,70,40,'#22263a','#b39ddb')
+    +_t(200,98,'ロガー','#b39ddb',9,true)
+    +_t(200,110,'監視装置','#8b90a0',8)
+    +'<rect x="240" y="93" width="75" height="14" rx="7" fill="#1a2a30" stroke="#4fc3f7" stroke-width="2"/>'
+    +_t(278,103,'光ケーブル','#4fc3f7',7,true)
+    +_b(320,80,70,40,'#1a2040','#b39ddb')
+    +_t(355,98,'☁ クラウド','#b39ddb',9,true)
+    +_t(240,155,'▲ 上段：電力の流れ（DCケーブル→ACケーブル→高圧ケーブル） / 下段：通信・制御の流れ','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'端末材・接続部品':{
+  title:'{name}の役割 — ケーブルと機器をつなぐ「接着剤」',
+  desc:'ケーブル先端を加工して機器に確実に接続するための部品。接触不良・漏電・発熱を防ぎ、安全で確実な電気接続を実現する。',
+  subdesc:{
+    'ケーブル端末材／接続部材':'ケーブル末端の絶縁処理や接続に使う部材一式。高圧・低圧それぞれ専用品がある。',
+    '固定式端子台':'複数のケーブルを一箇所にまとめて接続・固定する台座。盤内で「ケーブルの接続先住所」の役割。',
+    '高圧端末材':'6,600Vの高圧ケーブルの末端を安全に絶縁処理する専用部材。絶縁不良＝感電・火災に直結する重要品。',
+    '端子':'ケーブル先端に圧着して取り付ける金具。機器のネジ端子にボルトで固定する。',
+    '端子／圧着端子':'専用工具でケーブルにかしめて取り付ける端子。圧着＝物理的に金属を潰して固定する方法。',
+    '端子／工具':'端子を圧着するための専用工具。サイズに合った工具で正しい圧力をかけないと接触不良の原因になる。',
+    '端子／接続アダプタ':'規格が違う端子同士を変換・接続するアダプタ。異なるメーカーの機器同士を繋ぐ時に使用。',
+    '端子／接続部品':'ケーブルと機器を繋ぐための各種部品。コネクタ・スリーブ等を含む。',
+    '端子台／テスト端子':'計測器を接続して電流・電圧をテストできる端子台。点検時に「ここに計測器を差して確認」。',
+    '端子台／配線部材':'配線を整理して接続するための端子台と関連部材。盤内の配線をすっきりまとめる。',
+    '端末材':'ケーブル末端の絶縁・防水処理を行う部材。屋外で雨に晒される場所では特に重要。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(160,20,'❌ 端末処理なし（NG）','#ff5252',10,true)
+    +'<rect x="20" y="30" width="100" height="28" rx="10" fill="#22263a" stroke="#4fc3f7" stroke-width="2"/>'
+    +_t(70,48,'ケーブル','#4fc3f7',9)
+    +'<rect x="120" y="35" width="60" height="18" rx="4" fill="#3a1010" stroke="#ff5252" stroke-width="2"/>'
+    +_t(150,48,'むき出し!','#ff5252',8,true)
+    +_b(195,30,80,28,'#22263a','#8b90a0')
+    +_t(235,48,'機器端子','#8b90a0',9)
+    +_t(330,40,'→ 接触不良','#ff5252',9)
+    +_t(330,52,'→ 発熱・漏電の危険','#ff5252',8)
+    +_t(160,85,'✅ 端末処理あり（OK）','#69f0ae',10,true)
+    +'<rect x="20" y="95" width="100" height="28" rx="10" fill="#22263a" stroke="#4fc3f7" stroke-width="2"/>'
+    +_t(70,113,'ケーブル','#4fc3f7',9)
+    +'<rect x="120" y="98" width="60" height="22" rx="4" fill="#1a3020" stroke="#69f0ae" stroke-width="2.5"/>'
+    +_t(150,113,'端子','#69f0ae',9,true)
+    +_t(150,130,'（圧着固定）','#8b90a0',7)
+    +_b(195,95,80,28,'#22263a','#69f0ae')
+    +_t(235,113,'機器端子','#69f0ae',9)
+    +_t(330,105,'→ 確実な接続','#69f0ae',9)
+    +_t(330,117,'→ 安全・長持ち','#69f0ae',8)
+    +_t(240,155,'▲ ケーブル末端に端子を圧着して機器と確実に接続。むき出し接続は事故の元','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'通信・監視・制御':{
+  title:'{name}の役割 — 発電所を遠隔で「見守る」',
+  desc:'PCSやセンサーのデータを集約し、インターネット経由でクラウドへ送信。事務所から遠く離れた発電所の状態を24時間リアルタイム監視する。',
+  subdesc:{
+    'I/Oユニット':'Input/Output（入出力）ユニット。センサーの信号を受け取り（入力）、制御命令を送る（出力）。PLC的な役割。',
+    'アンテナ':'携帯回線（4G/LTE）でクラウドと通信するためのアンテナ。LANが引けない山間部の発電所で必須。',
+    'スイッチングハブ':'複数のLANケーブルを集約して機器間のデータ通信を中継するネットワーク機器。オフィスのハブと同じ。',
+    'ロガー':'データロガー。各PCS・計測器のデータを集約・記録し、クラウドへ転送する「発電所の頭脳」。SmartLoggerなど。',
+    '光/LAN変換器':'光ケーブルの信号をLANケーブルの電気信号に変換するメディアコンバータ。長距離通信の中継点。',
+    '光/RS485変換器':'光ケーブルの信号をRS485（産業用シリアル通信）に変換。PCSとの通信に使用する産業用コンバータ。',
+    '光変換機':'光信号と電気信号を相互変換する装置。光ケーブルと電気ケーブルの境目に設置。',
+    '通信・制御機器':'発電所内の各機器とクラウド間の通信を担当する制御機器の総称。ロガー・コンバータ等を含む。',
+    '通信・制御機器（光パッチコード）':'光ケーブル同士を接続する短い中継ケーブル。ロガーとコンバータ間の配線に使用。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 170" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(10,30,60,35,'#1a2a40','#4fc3f7')
+    +_t(40,48,'PCS','#4fc3f7',8,true)
+    +_t(40,60,'×数十台','#8b90a0',7)
+    +_b(10,75,60,35,'#2a2a10','#f5a623')
+    +_t(40,93,'日射計','#f5a623',8,true)
+    +_t(40,105,'気温計','#f5a623',7)
+    +_b(10,120,60,30,'#22263a','#69f0ae')
+    +_t(40,138,'メーター','#69f0ae',8,true)
+    +'<line x1="70" y1="47" x2="110" y2="70" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +'<line x1="70" y1="92" x2="110" y2="80" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<line x1="70" y1="135" x2="110" y2="88" stroke="#69f0ae" stroke-width="1.5"/>'
+    +_b(115,50,100,55,'#22263a','#f5a623',3)
+    +_t(165,73,name||'ロガー','#f5a623',11,true)
+    +_t(165,88,'（データ集約）','#8b90a0',8)
+    +'<line x1="215" y1="77" x2="255" y2="77" stroke="#69f0ae" stroke-width="2" marker-end="url(#ah)"/>'
+    +_t(235,72,'LAN/光','#69f0ae',7)
+    +_b(260,55,70,45,'#22263a','#b39ddb')
+    +_t(295,75,'📡','#b39ddb',14)
+    +_t(295,95,'通信','#b39ddb',8)
+    +'<line x1="330" y1="77" x2="370" y2="77" stroke="#b39ddb" stroke-width="2" marker-end="url(#ah)"/>'
+    +_t(350,72,'4G/光','#b39ddb',7)
+    +_b(375,50,90,55,'#1a2040','#b39ddb')
+    +_t(420,73,'☁ クラウド','#b39ddb',10,true)
+    +_t(420,88,'24時間監視','#8b90a0',8)
+    +_t(240,160,'▲ 全機器のデータをロガーで集約 → 通信装置 → クラウドへ送信。遠隔から24時間監視','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'配管・ラック':{
+  title:'{name}の役割 — ケーブルの「道路」をつくる',
+  desc:'発電所内の大量のケーブル（数千〜数万メートル）を整理して通すための管・ダクト・ラック。物理的ダメージや紫外線からケーブルを守る。',
+  subdesc:{
+    'ラック部材':'ケーブルを載せて通す棚状の構造物（ケーブルラック）の部材。はしご状の金属製。',
+    '配管・ボックス（ラック）':'ケーブルラックとジャンクションボックスのセット。ケーブルの分岐点に箱を設置。',
+    '配管資材（ダクト）':'ケーブルを収納する箱型の通路。盤内の配線整理にも使用。フタ付きで保護力が高い。',
+    '配管資材（フレキ管）':'柔軟に曲がるフレキシブル管。機器の振動部分や曲がり角で使用。蛇腹状の管。',
+    '配管資材（ボックス）':'配管の接続点やケーブルの分岐点に設置する箱。防水型は屋外設置向け。',
+    '配管資材（ラック）':'ケーブルラック本体。長い距離のケーブルルートを作る。はしご状の金属製。',
+    '配管資材（継手）':'配管同士をつなぐジョイント部品。方向変更（L字・T字）やサイズ変更に使用。',
+    '配管資材（鋼管）':'金属製の電線管。地中埋設や屋外露出配管で使用。最も丈夫なケーブル保護材。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(100,18,'❌ 配管なし','#ff5252',9,true)
+    +'<line x1="20" y1="30" x2="180" y2="30" stroke="#ff5252" stroke-width="3"/>'
+    +'<line x1="20" y1="36" x2="180" y2="50" stroke="#ff5252" stroke-width="2"/>'
+    +'<line x1="20" y1="42" x2="180" y2="28" stroke="#ff5252" stroke-width="2"/>'
+    +_t(100,62,'ケーブルが雨・紫外線・','#ff5252',8)
+    +_t(100,73,'動物にさらされてボロボロに','#ff5252',8)
+    +_t(350,18,'✅ 配管・ラックあり','#69f0ae',9,true)
+    +'<rect x="260" y="25" width="180" height="30" rx="4" fill="#22263a" stroke="#69f0ae" stroke-width="2"/>'
+    +'<line x1="260" y1="40" x2="440" y2="40" stroke="#69f0ae" stroke-width="1" stroke-dasharray="3,3"/>'
+    +'<line x1="280" y1="30" x2="280" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="310" y1="30" x2="310" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="340" y1="30" x2="340" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="370" y1="30" x2="370" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="400" y1="30" x2="400" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +'<line x1="430" y1="30" x2="430" y2="55" stroke="#69f0ae" stroke-width="0.5"/>'
+    +_t(350,45,'ケーブル（保護されている）','#69f0ae',8)
+    +_t(350,73,'雨・紫外線・動物から保護。','#69f0ae',8)
+    +_t(350,84,'整理されて点検もしやすい','#69f0ae',8)
+    +_b(20,95,440,20,'#1a2a40','#4fc3f7')
+    +_t(240,109,'太陽光発電所の地面・架台上にケーブルルートを構築','#4fc3f7',9)
+    +_t(240,145,'▲ 大量のケーブルを配管・ラックで保護・整理。屋外の過酷な環境からケーブルを守る','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'架台・基礎':{
+  title:'架台・基礎の役割 — パネルを支える「骨格」',
+  desc:'何千枚もの太陽光パネルを最適角度で支え、地面にしっかり固定する。台風（風速60m/s）にも耐える強度設計が法律で求められる。',
+  subdesc:{
+    '架台・基礎材':'架台の柱・梁と基礎杭のセット。パネルを南向き約10〜20°の角度で支える。アルミまたはスチール製。',
+    '基礎部材':'地面に打ち込むスクリュー杭やコンクリート基礎。架台を地面に固定する「根っこ」の部分。'
+  },
+  svg:function(){
+    return '<svg viewBox="0 0 480 170" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_t(120,15,'☀ 太陽光','#f5a623',10)
+    +'<line x1="120" y1="20" x2="100" y2="38" stroke="#f5a623" stroke-width="1.5" stroke-dasharray="3,2"/>'
+    +'<line x1="120" y1="20" x2="140" y2="38" stroke="#f5a623" stroke-width="1.5" stroke-dasharray="3,2"/>'
+    +'<polygon points="40,40 200,40 220,70 20,70" fill="#1a2a40" stroke="#4fc3f7" stroke-width="2"/>'
+    +'<line x1="60" y1="40" x2="60" y2="70" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="100" y1="40" x2="100" y2="70" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="140" y1="40" x2="140" y2="70" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +'<line x1="180" y1="40" x2="180" y2="70" stroke="#4fc3f7" stroke-width="0.5"/>'
+    +_t(120,60,'太陽光パネル（斜め設置）','#4fc3f7',8)
+    +'<line x1="60" y1="70" x2="60" y2="110" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<line x1="120" y1="70" x2="120" y2="110" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<line x1="180" y1="70" x2="180" y2="110" stroke="#f5a623" stroke-width="2.5"/>'
+    +'<line x1="40" y1="95" x2="200" y2="95" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(120,90,'架台（アルミ/スチール）','#f5a623',8,true)
+    +'<rect x="20" y="110" width="200" height="15" rx="2" fill="#2a2a10" stroke="#8b90a0" stroke-width="1.5"/>'
+    +_t(120,121,'地面','#8b90a0',8)
+    +'<rect x="55" y="115" width="10" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="115" y="115" width="10" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +'<rect x="175" y="115" width="10" height="25" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(120,155,'基礎杭（地中に打込み）','#f5a623',8)
+    +_b(260,25,200,115,'#22263a','#69f0ae')
+    +_t(360,45,'架台・基礎が必要な理由','#69f0ae',9,true)
+    +_t(360,65,'1. パネルの最適角度を維持','#e8eaf0',8)
+    +_t(360,80,'2. 台風（60m/s）に耐える強度','#e8eaf0',8)
+    +_t(360,95,'3. 積雪荷重への対応','#e8eaf0',8)
+    +_t(360,110,'4. 20年以上の耐久性','#e8eaf0',8)
+    +_t(360,130,'✅ JIS C 8955 基準で設計','#69f0ae',8)
+    +'</svg>';
+  }
+},
+'金物・ボルト・鋼材':{
+  title:'{name}の役割 — 構造物を「固定する」縁の下の力持ち',
+  desc:'架台・盤・機器などをボルト・金具・鋼材でしっかり固定・接合する。目立たないが、これがないと何も組み立てられない基礎部品。',
+  subdesc:{
+    'アンカー':'コンクリート基礎に機器や架台を固定するための埋め込みボルト。抜けないように先端が広がる構造。',
+    'ポール':'カメラ・照明・アンテナ等を高い位置に設置するための支柱。高さ3〜6m程度。',
+    'ボルト':'ナットと組み合わせて部材を締結する基本固定具。M12/M16が発電所では一般的。ステンレス製で錆びにくい。',
+    '金具':'ケーブルや配管を架台・壁に固定する取付金具。サドル・クランプ・ブラケットなど形状は多様。',
+    '金物':'構造物の接合に使う金属部品の総称。L字金具・ステー・プレートなど。',
+    '鋼材':'アングル鋼・チャンネル鋼など構造物の骨格となる鉄鋼製品。基礎や架台の補強に使用。',
+    '板金':'薄い金属板を加工した部品。機器のカバーや仕切り板、雨よけなどに使用。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 140" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(20,15,130,110,'#22263a','#f5a623')
+    +_t(85,35,'発電所の構造物','#f5a623',9,true)
+    +'<rect x="35" y="45" width="50" height="25" rx="3" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +_t(60,61,'架台','#4fc3f7',8)
+    +'<rect x="95" y="45" width="40" height="25" rx="3" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +_t(115,61,'盤','#4fc3f7',8)
+    +'<rect x="35" y="80" width="50" height="25" rx="3" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +_t(60,96,'PCS','#4fc3f7',8)
+    +'<rect x="95" y="80" width="40" height="25" rx="3" fill="#1a2a40" stroke="#4fc3f7" stroke-width="1.5"/>'
+    +_t(115,96,'配管','#4fc3f7',8)
+    +_t(200,55,'← 固定 →','#8b90a0',10)
+    +_b(240,15,220,110,'#1a3020','#69f0ae')
+    +_t(350,35,'金物・ボルト・鋼材','#69f0ae',10,true)
+    +'<circle cx="280" cy="65" r="8" fill="#3a2510" stroke="#f5a623" stroke-width="2"/>'
+    +_t(280,69,'🔩','#f5a623',8)
+    +_t(280,85,'ボルト','#8b90a0',7)
+    +'<rect x="310" y="55" width="30" height="15" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(325,66,'金具','#f5a623',7)
+    +_t(325,85,'固定金具','#8b90a0',7)
+    +'<rect x="355" y="55" width="30" height="15" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(370,66,'鋼材','#f5a623',7)
+    +_t(370,85,'骨組み','#8b90a0',7)
+    +'<rect x="400" y="55" width="45" height="15" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="1.5"/>'
+    +_t(423,66,'アンカー','#f5a623',7)
+    +_t(423,85,'基礎固定','#8b90a0',7)
+    +_t(350,115,'これがないと何も組み立てられない！','#69f0ae',8)
+    +'</svg>';
+  }
+},
+'フェンス・門扉':{
+  title:'フェンス・門扉の役割 — 発電所を囲んで守る「外壁」',
+  desc:'発電所の敷地外周を囲んで部外者・動物の侵入を防止。電気事業法・消防法で設置が義務付けられた法定設備。',
+  subdesc:{
+    'フェンス':'敷地外周を囲う金属柵。高さ1.8m以上が一般的。有刺鉄線付きもある。数百〜数千メートル必要。',
+    'フェンス材':'フェンス本体の網・支柱・固定金具などの部材。メッシュフェンスが主流。',
+    '門扉':'フェンスの出入口に設置する門。施錠付きで関係者のみ入場可能にする。車両用と人用がある。'
+  },
+  svg:function(){
+    return '<svg viewBox="0 0 480 150" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +'<rect x="40" y="20" width="400" height="90" rx="0" fill="none" stroke="#69f0ae" stroke-width="3"/>'
+    +'<line x1="40" y1="40" x2="440" y2="40" stroke="#69f0ae" stroke-width="0.5" stroke-dasharray="8,4"/>'
+    +'<line x1="40" y1="60" x2="440" y2="60" stroke="#69f0ae" stroke-width="0.5" stroke-dasharray="8,4"/>'
+    +_t(240,80,'☀ 太陽光発電所の敷地内','#f5a623',11,true)
+    +_t(240,97,'パネル・PCS・変圧器・配電盤 etc.','#8b90a0',9)
+    +'<rect x="200" y="105" width="80" height="12" rx="2" fill="#3a2510" stroke="#f5a623" stroke-width="2"/>'
+    +_t(240,115,'門扉（出入口）','#f5a623',8,true)
+    +_t(20,80,'フ','#69f0ae',8)
+    +_t(20,90,'ェ','#69f0ae',8)
+    +_t(20,100,'ン','#69f0ae',8)
+    +_t(20,110,'ス','#69f0ae',8)
+    +_t(10,50,'🔒','#69f0ae',10)
+    +_t(460,55,'部外者','#ff5252',9)
+    +_t(460,70,'侵入','#ff5252',9)
+    +_t(460,85,'❌','#ff5252',14)
+    +_t(240,140,'▲ フェンスで敷地を囲い、門扉で出入りを管理。法律で設置義務あり（電気事業法）','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'安全・標識・その他':{
+  title:'{name}の役割 — 安全確保と法令遵守',
+  desc:'「高圧危険」標識・照明・防草シート・歩廊など。作業員の安全と法的義務を果たすための設備群。地味だが設置しないと法令違反。',
+  subdesc:{
+    'その他設備機器':'発電所運用に必要なその他の設備機器。カメラ・空調・倉庫設備など。',
+    '安全・防災用品':'ヘルメット・消火器・安全帯・救急箱など。作業員の命を守る基本装備。',
+    '照明':'夜間作業や防犯のための発電所内照明。LED投光器が主流。',
+    '標識':'「高圧危険」「関係者以外立入禁止」など法定標識。消防法・電気事業法で設置義務あり。',
+    '歩廊':'パネル間や機器周辺の通路・足場。安全な点検作業のために設置する歩行路。',
+    '防草シート':'地面に敷いて雑草を防ぐシート。雑草がパネルに影を落とすと発電量が激減するため重要。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 140" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(20,15,90,50,'#3a1010','#ff5252')
+    +_t(65,35,'⚠ 高圧危険','#ff5252',9,true)
+    +_t(65,52,'法定標識','#8b90a0',8)
+    +_b(130,15,90,50,'#2a2a10','#f5a623')
+    +_t(175,35,'💡 照明','#f5a623',9,true)
+    +_t(175,52,'夜間作業/防犯','#8b90a0',8)
+    +_b(240,15,90,50,'#1a3020','#69f0ae')
+    +_t(285,35,'🌿 防草','#69f0ae',9,true)
+    +_t(285,52,'シート','#69f0ae',8)
+    +_b(350,15,110,50,'#1a2040','#4fc3f7')
+    +_t(405,35,'🦺 安全用品','#4fc3f7',9,true)
+    +_t(405,52,'ヘルメット/消火器','#8b90a0',7)
+    +_b(20,80,440,30,'#22263a','#8b90a0')
+    +_t(240,99,'これらがないと → 法令違反・労災事故・発電効率低下','#ff5252',9)
+    +_t(240,130,'▲ 法律で設置が義務付けられた安全設備。発電所の許認可・運用に必須','#8b90a0',8)
+    +'</svg>';
+  }
+},
+'その他部品・資材':{
+  title:'{name}の役割 — 発電所を完成させる「最後のピース」',
+  desc:'主要機器の設置・配線・制御に必要な補助部品や消耗品。DINレール・タップ・コンセントなど、単体では目立たないが欠かせない。',
+  subdesc:{
+    'DINレールベース':'盤内にブレーカーやリレーを「カチッ」と取り付けるための標準レール。DIN規格で世界共通。',
+    'OAタップ':'事務所やサーバー室の電源タップ。監視PCやルーターの電源に使用。',
+    'コンセントバー':'盤内に設置する多連コンセント。補助機器の電源供給に使用。',
+    'スイッチ・コンセント類':'照明のON/OFFや小型機器の電源接続に使う一般的な電気部品。',
+    '機材':'工事・保守に使用する各種機材。脚立・工具セット等。',
+    '単品部品':'個別の小型部品。予備品や交換用として在庫管理される。',
+    '部材':'設備の構成要素となる各種部材。',
+    'nan':'分類未設定の部品・資材。'
+  },
+  svg:function(name){
+    return '<svg viewBox="0 0 480 120" xmlns="http://www.w3.org/2000/svg">'+_AD
+    +_b(20,15,100,40,'#22263a','#f5a623')
+    +_t(70,35,'盤の中身','#f5a623',9,true)
+    +_t(70,48,'ブレーカー・リレー','#8b90a0',7)
+    +'<line x1="120" y1="35" x2="150" y2="35" stroke="#f5a623" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +_b(155,20,80,30,'#1a3020','#69f0ae')
+    +_t(195,38,'DINレール','#69f0ae',8,true)
+    +_t(195,48,'取付用レール','#8b90a0',7)
+    +_b(260,15,90,40,'#22263a','#4fc3f7')
+    +_t(305,33,'監視装置','#4fc3f7',9,true)
+    +_t(305,48,'ルーター・PC','#8b90a0',7)
+    +'<line x1="350" y1="35" x2="375" y2="35" stroke="#4fc3f7" stroke-width="1.5" marker-end="url(#ah)"/>'
+    +_b(380,20,80,30,'#22263a','#69f0ae')
+    +_t(420,38,'タップ','#69f0ae',8,true)
+    +_t(420,48,'電源供給','#8b90a0',7)
+    +_b(20,70,440,25,'#22263a','#8b90a0')
+    +_t(240,87,'補助部品がないと → 機器の取付不可・電源確保不可 → 工事が止まる','#f5a623',8)
+    +_t(240,115,'▲ 主役ではないが「ないと工事が止まる」必須の補助部品・消耗品群','#8b90a0',8)
+    +'</svg>';
+  }
+}
+};// end ROLE_SVG
+
+function getRoleDiagram(m){
+  const sub=m.sub_category||'';
+  const major=m.major_category||'';
+  const name=sub||major||'資材';
+  const data=ROLE_SVG[major];
+  if(data){
+    const subDesc=(data.subdesc&&data.subdesc[sub])?data.subdesc[sub]:data.desc;
+    const title=data.title.replace(/\{name\}/g,name);
+    const svgHtml=data.svg(name);
+    return{title,svg:svgHtml,desc:subDesc};
+  }
+  // fallback
+  return{title:name+'の役割',svg:'',desc:m.desc1?m.desc1.replace(/<[^>]*>/g,'').substring(0,80):'発電所で使用される資材'};
+}
+
+function showDetail(id){
+  const m=ALL.find(x=>x.id===id);
+  if(!m)return;
+  const main=document.getElementById('mainContent');
+  const numId=String(m.id).padStart(3,'0');
+  const price=m.unit_price!=null?'¥'+Number(m.unit_price).toLocaleString():'—';
+  const unit=m.unit||'';
+
+  // --- Photo row (above diagrams) ---
+  let photoRowHtml='';
+  if(m.image_url&&m.image_url.startsWith('http')){
+    photoRowHtml='<div class="det-photo-row"><div class="det-photo-box">'
+      +'<img src="'+m.image_url+'" alt="'+m.product_name+'" onerror="this.parentElement.parentElement.style.display=\'none\'">'
+      +'<div class="det-photo-label">📸 実物写真</div></div></div>';
+  }else if(m.guide_photo&&m.guide_photo.length>0){
+    const gUrl=m.guide_photo.startsWith('http')?m.guide_photo:'https://sizaidb.netlify.app/'+m.guide_photo;
+    photoRowHtml='<div class="det-photo-row"><div class="det-photo-box">'
+      +'<img src="'+gUrl+'" alt="'+m.product_name+'" onerror="this.parentElement.parentElement.style.display=\'none\'">'
+      +'<div class="det-photo-label">📸 ガイド写真</div></div></div>';
+  }
+
+  // --- Always show SVG イメージ図 on the LEFT ---
+  const svgB64='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(genSvgPlaceholder(m))));
+  const imgBoxHtml='<div class="det-imgbox"><img src="'+svgB64+'" alt="'+m.product_name+'">'
+    +'<div class="det-imgbox-label">📐 イメージ図</div></div>';
+
+  // --- Role diagram on the RIGHT ---
+  const role=getRoleDiagram(m);
+  const diagramHtml='<div class="det-diagram">'
+    +'<div class="det-diagram-title">'+(CAT_ICONS[m.major_category]||'⚡')+' '+role.title+'</div>'
+    +(role.svg||'')
+    +'<div class="det-diagram-desc">'+role.desc+'</div>'
+    +'</div>';
+
+  const mediaHtml=photoRowHtml+'<div class="det-media">'+imgBoxHtml+diagramHtml+'</div>';
+
+  // Cards
+  const cardData=[
+    {title:'① 一言でいうと',icon:m.icon1||'⚡',body:m.desc1,cls:'c-bl'},
+    {title:'② 何に使う？',icon:m.icon2||'🔋',body:m.desc2,cls:'c-or'},
+    {title:'③ 納期',icon:m.icon3||'📦',body:m.desc3,cls:'c-gr'},
+    {title:'④ 金額',icon:m.icon4||'💴',body:null,cls:'c-or',custom:'<div class="det-price">'+price+'</div><div class="det-price-sub">'+(unit?unit+'あたり。':'')+'</div>'+(m.desc4_note?'<div style="margin-top:6px;font-size:12px;color:var(--tx2)">'+m.desc4_note+'</div>':'')},
+    {title:'⑤ ないと？',icon:m.icon5||'⚠️',body:m.desc5,cls:'c-re'},
+    {title:'⑥ サイズ／仕様',icon:m.icon6||'📐',body:m.desc6,cls:'c-cy'}
+  ];
+  let cards='';
+  cardData.forEach(c=>{
+    if(c.body||c.custom){
+      cards+='<div class="det-card '+c.cls+'"><div class="det-card-title">'+c.icon+' '+c.title+'</div><div class="det-card-body">'+(c.custom||c.body)+'</div></div>';
+    }
+  });
+
+  // Price history
+  let histHtml='';
+  if(m.price_history&&Array.isArray(m.price_history)&&m.price_history.length>0){
+    histHtml='<div class="det-history"><div class="det-history-title">📊 価格履歴（'+m.price_history.length+'件の見積記録）</div>';
+    histHtml+='<table><thead><tr><th>見積日</th><th>見積先</th><th>単価</th></tr></thead><tbody>';
+    m.price_history.forEach(h=>{
+      histHtml+='<tr><td>'+(h.date||h.estimate_date||'—')+'</td><td>'+(h.supplier||'—')+'</td><td>¥'+(h.price?Number(h.price).toLocaleString():(h.unit_price?Number(h.unit_price).toLocaleString():'—'))+'</td></tr>';
+    });
+    histHtml+='</tbody></table></div>';
+  }
+
+  // Back button
+  const backCat=activeCat||m.major_category||'__all__';
+  const backLabel=backCat==='__all__'?'全て':backCat;
+
+  main.innerHTML=
+    '<button class="list-back" id="detBack">◀ '+backLabel+' に戻る</button>'+
+    '<div class="det-header">'+
+      '<div class="det-num">'+numId+'</div>'+
+      '<div class="det-cat">'+(m.major_category||'')+' ／ '+(m.maker||'')+'</div>'+
+      '<div class="det-name">'+m.product_name+'</div>'+
+      '<div class="det-sub">'+(m.sub_category?m.sub_category+' ／ ':'')+(m.estimate_date?'見積日: '+m.estimate_date:'')+'</div>'+
+    '</div>'+
+    mediaHtml+
+    '<div class="det-cards">'+cards+'</div>'+
+    histHtml+
+    '<div class="det-footer">しろくま電力 資材DB まるわかりガイド</div>';
+
+  main.scrollTop=0;
+
+  // Back button event — use browser back
+  document.getElementById('detBack').onclick=()=>{
+    history.back();
+  };
+}
+
+// Init
+async function init(){
+  ALL=await loadAll();
+  renderStats();
+  renderList();
+
+  // Search
+  const si=document.getElementById('searchInput');
+  si.addEventListener('input',()=>renderList());
+  si.addEventListener('keydown',e=>{if(e.key==='Enter')renderList();});
+
+  // Hash navigation on load
+  const hash=location.hash;
+  if(hash&&hash.startsWith('#p')){
+    const pid=parseInt(hash.substring(2));
+    if(pid){
+      const m=ALL.find(x=>x.id===pid);
+      activeCat=m?m.major_category:'__all__';
+      activeId=pid;
+      renderList();
+      showDetail(pid);
+    }
+  }else if(hash&&hash.startsWith('#cat=')){
+    const cat=decodeURIComponent(hash.substring(5));
+    activeCat=cat;
+    renderList();
+    showCatList(cat);
+  }
+
+  // Browser back/forward button support
+  window.addEventListener('popstate',e=>{
+    const state=e.state;
+    if(!state){
+      // Back to initial state (no selection)
+      activeCat=null;
+      activeId=null;
+      renderList();
+      document.getElementById('mainContent').innerHTML='<div class="main-empty"><div class="big">📖</div><p>左側のリストから資材を選択してください</p></div>';
+    }else if(state.view==='list'){
+      activeCat=state.cat;
+      activeId=null;
+      renderList();
+      showCatList(state.cat);
+    }else if(state.view==='detail'){
+      activeCat=state.cat;
+      activeId=state.id;
+      renderList();
+      showDetail(state.id);
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>
