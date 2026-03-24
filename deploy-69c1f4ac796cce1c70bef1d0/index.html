@@ -1597,49 +1597,13 @@ async function init(){
 init();
 </script>
 <!--
-  上司UIコピー版 - メインエリア全体にAI回答表示
+  v6: サイドバー常時表示 + メインエリア内にAI回答表示
   </body> の直前に貼り付け
+  ※ 既存のv5コード（ai-q-bubble, ai-overlay, 下部入力バー, style, script）は全て削除してからこれを貼る
 -->
  
-<!-- ユーザー質問の吹き出し（右上） -->
-<div id="ai-q-bubble" style="
-  display:none;position:fixed;top:12px;right:16px;z-index:9999;max-width:500px;
-">
-  <div style="
-    display:flex;align-items:center;gap:8px;
-    background:#2563eb;color:#fff;padding:8px 16px;
-    border-radius:16px;font-size:13px;font-weight:500;
-    box-shadow:0 2px 8px rgba(37,99,235,0.3);
-  "><span id="ai-q-text"></span><span style="
-    width:28px;height:28px;border-radius:50%;background:#1d4ed8;
-    display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;
-  ">👤</span></div>
-</div>
- 
-<!-- AI回答オーバーレイ（メインエリア全体を使う） -->
-<div id="ai-overlay" style="
-  display:none;position:fixed;top:0;left:0;right:0;bottom:60px;z-index:9990;
-  background:#fff;overflow-y:auto;
-">
-  <!-- ヘッダー -->
-  <div style="
-    position:sticky;top:0;z-index:2;
-    display:flex;align-items:center;gap:6px;padding:8px 14px;
-    background:linear-gradient(135deg,#f8fafc,#eef2ff);
-    border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#0f172a;
-  ">🤖 AI分析結果<button onclick="closeAI()" style="
-    margin-left:auto;cursor:pointer;font-size:14px;color:#94a3b8;
-    background:none;border:none;padding:2px 6px;border-radius:4px;
-  " onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'">✕</button></div>
-  <!-- 回答本体 -->
-  <div id="ab" style="
-    padding:20px 32px;font-size:13px;line-height:1.85;color:#0f172a;
-    max-width:100%;white-space:pre-wrap;
-  "></div>
-</div>
- 
 <!-- 下部固定入力バー -->
-<div style="
+<div id="ai-chatbar" style="
   position:fixed;bottom:0;left:0;right:0;z-index:9995;
   padding:8px 16px 10px;background:#fff;border-top:1px solid #e2e8f0;
 ">
@@ -1665,10 +1629,10 @@ init();
 <div style="height:60px;"></div>
  
 <style>
-#ab strong{color:#2563eb}
-#ab .md-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;white-space:normal}
-#ab .md-tbl th,#ab .md-tbl td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left}
-#ab .md-tbl th{background:#f1f5f9;font-weight:600}
+#ai-result-area strong{color:#2563eb}
+#ai-result-area .md-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;white-space:normal}
+#ai-result-area .md-tbl th,#ai-result-area .md-tbl td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left}
+#ai-result-area .md-tbl th{background:#f1f5f9;font-weight:600}
 .ld{display:flex;align-items:center;gap:8px;padding:12px 0;color:#94a3b8;font-size:12px}
 .ld-d{width:6px;height:6px;border-radius:50%;background:#2563eb;animation:ld-b 1.4s infinite ease-in-out both}
 .ld-d:nth-child(1){animation-delay:-.32s}
@@ -1679,11 +1643,34 @@ init();
 <script>
 var API_CHAT='/.netlify/functions/chat';
 var HIST=[],BUSY=false;
+var _originalMain='';
+var _aiShowing=false;
  
-function showAI(){document.getElementById('ai-overlay').style.display='block';}
+function showAIResult(html){
+  var mc=document.getElementById('mainContent');
+  if(!mc)return;
+  if(!_aiShowing){
+    _originalMain=mc.innerHTML;
+    _aiShowing=true;
+  }
+  mc.innerHTML=
+    '<div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">'+
+      '<div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:linear-gradient(135deg,#f8fafc,#eef2ff);border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#0f172a;flex-shrink:0;">'+
+        '\u{1F916} AI分析結果'+
+        '<button onclick="closeAI()" style="margin-left:auto;cursor:pointer;font-size:13px;color:#94a3b8;background:none;border:none;padding:4px 10px;border-radius:4px;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">\u2190 戻る</button>'+
+      '</div>'+
+      '<div id="ai-q-display" style="padding:8px 14px;background:#eef2ff;border-bottom:1px solid #e2e8f0;font-size:12px;color:#2563eb;font-weight:600;flex-shrink:0;display:none;"></div>'+
+      '<div id="ai-result-area" style="flex:1;overflow-y:auto;padding:20px 24px;font-size:13px;line-height:1.85;color:#0f172a;white-space:pre-wrap;">'+
+        html+
+      '</div>'+
+    '</div>';
+}
+ 
 function closeAI(){
-  document.getElementById('ai-overlay').style.display='none';
-  document.getElementById('ai-q-bubble').style.display='none';
+  var mc=document.getElementById('mainContent');
+  if(!mc)return;
+  mc.innerHTML=_originalMain;
+  _aiShowing=false;
 }
  
 function renderMarkdown(txt){
@@ -1718,27 +1705,28 @@ function ask(){
   inp.value='';BUSY=true;
   document.getElementById('qb').disabled=true;
  
-  document.getElementById('ai-q-text').textContent=msg;
-  document.getElementById('ai-q-bubble').style.display='block';
+  showAIResult('<div class="ld"><div class="ld-d"></div><div class="ld-d"></div><div class="ld-d"></div><span>DB\u691c\u7d22 & AI\u5206\u6790\u4e2d...</span></div>');
  
-  showAI();
-  document.getElementById('ab').innerHTML='<div class="ld"><div class="ld-d"></div><div class="ld-d"></div><div class="ld-d"></div><span>DB\u691c\u7d22 & AI\u5206\u6790\u4e2d...</span></div>';
+  var qd=document.getElementById('ai-q-display');
+  if(qd){qd.textContent='\uD83D\uDCAC '+msg;qd.style.display='block';}
  
   fetch(API_CHAT,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({message:msg,history:HIST.slice(-6)})
   }).then(function(r){return r.json()}).then(function(d){
     if(d.error){
-      document.getElementById('ab').innerHTML='<span style="color:#ea580c">\u26a0\ufe0f '+d.error+'</span>';
+      var area=document.getElementById('ai-result-area');
+      if(area) area.innerHTML='<span style="color:#ea580c">\u26a0\ufe0f '+d.error+'</span>';
     }else{
       var txt=d.response||'\u5fdc\u7b54\u306a\u3057';
       HIST.push({role:'user',content:msg},{role:'assistant',content:txt});
-      document.getElementById('ab').innerHTML=renderMarkdown(txt);
+      var area=document.getElementById('ai-result-area');
+      if(area) area.innerHTML=renderMarkdown(txt);
     }
-    showAI();
     BUSY=false;document.getElementById('qb').disabled=false;
   }).catch(function(e){
-    document.getElementById('ab').innerHTML='<span style="color:#ea580c">\u26a0\ufe0f \u63a5\u7d9a\u30a8\u30e9\u30fc: '+e.message+'</span>';
-    showAI();BUSY=false;document.getElementById('qb').disabled=false;
+    var area=document.getElementById('ai-result-area');
+    if(area) area.innerHTML='<span style="color:#ea580c">\u26a0\ufe0f \u63a5\u7d9a\u30a8\u30e9\u30fc: '+e.message+'</span>';
+    BUSY=false;document.getElementById('qb').disabled=false;
   });
 }
 </script>
