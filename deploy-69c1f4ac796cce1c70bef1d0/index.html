@@ -1732,27 +1732,161 @@ init();
 </style>
  
 <script>
-// === AIアシスタント（上司UIスタイル） ===
+<!--
+  ============================================
+  AIアシスタント（全画面表示バージョン）
+  このコードを既存HTMLの </body> の直前に貼り付け
+  ============================================
+-->
+ 
+<!-- AI回答 全画面オーバーレイ -->
+<div id="ai-panel" style="
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9990;
+  background:rgba(0,0,0,0.5);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;
+  justify-content:center; align-items:center;
+">
+  <!-- メインカード -->
+  <div style="
+    width:90%; max-width:1000px; max-height:85vh;
+    background:#fff; border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.2);
+    display:flex; flex-direction:column; overflow:hidden;
+  ">
+    <!-- ヘッダー -->
+    <div style="
+      padding:18px 24px; background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      color:#fff; display:flex; align-items:center; justify-content:space-between;
+      flex-shrink:0;
+    ">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px">🤖</span>
+        <span style="font-weight:700;font-size:18px;">AI分析結果</span>
+      </div>
+      <span onclick="closeAIPanel()" style="cursor:pointer;font-size:22px;opacity:0.8;padding:4px 12px;border-radius:8px;transition:background 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='transparent'">✕</span>
+    </div>
+ 
+    <!-- 質問表示エリア -->
+    <div id="ai-question-bar" style="
+      padding:12px 24px; background:#f1f5f9; border-bottom:1px solid #e2e8f0;
+      font-size:14px; color:#4f46e5; font-weight:600; flex-shrink:0; display:none;
+    ">
+      <span style="margin-right:8px;">💬</span>
+      <span id="ai-question-text"></span>
+    </div>
+ 
+    <!-- 回答本体（スクロール可能） -->
+    <div id="ai-panel-body" style="
+      flex:1; overflow-y:auto; padding:32px 40px;
+      font-size:15px; line-height:1.9; color:#1e293b;
+    ">
+      <div style="color:#94a3b8;text-align:center;padding:60px 0;font-size:15px;">
+        AIに質問すると、ここに回答が表示されます
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<!-- 画面下部の固定入力バー -->
+<div id="ai-input-bar" style="
+  position:fixed; bottom:0; left:0; right:0; z-index:9995;
+  background:#fff; border-top:1px solid #e2e8f0;
+  padding:12px 24px; box-shadow:0 -2px 12px rgba(0,0,0,0.06);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans',sans-serif;
+">
+  <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;gap:12px;">
+    <div style="flex:1;position:relative;">
+      <input id="ai-input" type="text"
+        placeholder="AIに質問（例: おすすめのPCSは？ ケーブルの種類を教えて）"
+        onkeydown="if(event.key==='Enter')sendAI()"
+        style="
+          width:100%; padding:14px 18px; border-radius:12px;
+          border:2px solid #e2e8f0; background:#f8fafc;
+          font-size:14px; color:#1e293b; outline:none;
+          transition:border-color 0.2s;
+        "
+        onfocus="this.style.borderColor='#6366f1'"
+        onblur="this.style.borderColor='#e2e8f0'"
+      >
+    </div>
+    <button onclick="sendAI()" id="ai-send-btn" style="
+      padding:14px 28px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#4f46e5,#7c3aed);
+      color:#fff; font-size:14px; font-weight:700; cursor:pointer;
+      transition:opacity 0.2s; white-space:nowrap;
+    " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+      送信
+    </button>
+  </div>
+  <div style="max-width:900px;margin:4px auto 0;font-size:11px;color:#94a3b8;">
+    Claude AI がDBを検索して回答します
+  </div>
+</div>
+ 
+<!-- 既存コンテンツの下部パディング -->
+<div style="height:80px;"></div>
+ 
+<style>
+  #ai-panel-body h2, #ai-panel-body .ai-h2 {
+    font-size:20px; font-weight:700; color:#4f46e5;
+    margin:24px 0 12px; padding-bottom:8px;
+    border-bottom:2px solid #e2e8f0;
+  }
+  #ai-panel-body h3, #ai-panel-body .ai-h3 {
+    font-size:17px; font-weight:700; color:#6366f1;
+    margin:20px 0 10px;
+  }
+  #ai-panel-body strong { color:#1e293b; }
+  #ai-panel-body table {
+    width:100%; border-collapse:collapse; margin:16px 0;
+    font-size:14px;
+  }
+  #ai-panel-body th {
+    background:#f1f5f9; padding:12px 16px; text-align:left;
+    font-weight:600; color:#475569; border-bottom:2px solid #e2e8f0;
+  }
+  #ai-panel-body td {
+    padding:10px 16px; border-bottom:1px solid #f1f5f9; color:#334155;
+  }
+  #ai-panel-body tr:hover td { background:#f8fafc; }
+  #ai-panel-body ul, #ai-panel-body ol {
+    padding-left:24px; margin:10px 0;
+  }
+  #ai-panel-body li { margin:6px 0; color:#475569; }
+  .ai-loading-dots { display:inline-flex; gap:6px; align-items:center; }
+  .ai-loading-dots span {
+    width:10px; height:10px; border-radius:50%; background:#6366f1;
+    animation:ai-dot-bounce 1.4s infinite ease-in-out both;
+  }
+  .ai-loading-dots span:nth-child(1) { animation-delay:-0.32s; }
+  .ai-loading-dots span:nth-child(2) { animation-delay:-0.16s; }
+  @keyframes ai-dot-bounce {
+    0%,80%,100% { transform:scale(0); opacity:0.5; }
+    40% { transform:scale(1); opacity:1; }
+  }
+</style>
+ 
+<script>
 const AI_ENDPOINT = '/.netlify/functions/chat';
 let chatHistory = [];
 let isBusy = false;
  
 function openAIPanel() {
   document.getElementById('ai-panel').style.display = 'flex';
-  document.getElementById('ai-overlay').style.display = 'block';
 }
  
 function closeAIPanel() {
   document.getElementById('ai-panel').style.display = 'none';
-  document.getElementById('ai-overlay').style.display = 'none';
 }
  
 function showLoading() {
   openAIPanel();
+  document.getElementById('ai-question-bar').style.display = 'none';
   document.getElementById('ai-panel-body').innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;padding:40px 0;justify-content:center;color:#6366f1;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:80px 0;color:#6366f1;">
       <div class="ai-loading-dots"><span></span><span></span><span></span></div>
-      <span style="font-size:14px;font-weight:600;">DB検索 & AI分析中...</span>
+      <span style="font-size:16px;font-weight:600;">DB検索 & AI分析中...</span>
     </div>
   `;
 }
@@ -1763,7 +1897,6 @@ function renderMarkdown(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
  
-  // テーブル
   html = html.replace(/((?:^\|.+\|$\n?)+)/gm, function(tbl) {
     const rows = tbl.trim().split('\n').filter(r => r.trim());
     if (rows.length < 2) return tbl;
@@ -1780,19 +1913,12 @@ function renderMarkdown(text) {
     return t;
   });
  
-  // 見出し
   html = html.replace(/^### (.+)$/gm, '<h3 class="ai-h3">$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2 class="ai-h2">$1</h2>');
- 
-  // 太字
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
- 
-  // リスト
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>.*<\/li>\n?)+/gm, '<ul>$&</ul>');
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
- 
-  // 改行
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br>');
  
@@ -1823,7 +1949,7 @@ async function sendAI() {
  
     if (data.error) {
       document.getElementById('ai-panel-body').innerHTML =
-        '<div style="color:#ef4444;padding:20px;">⚠️ エラー: ' + data.error + '</div>';
+        '<div style="color:#ef4444;padding:40px;text-align:center;font-size:16px;">⚠️ エラー: ' + data.error + '</div>';
     } else {
       const reply = data.response || '応答なし';
       chatHistory.push(
@@ -1831,16 +1957,18 @@ async function sendAI() {
         { role: 'assistant', content: reply }
       );
  
-      const rendered = renderMarkdown(reply);
-      document.getElementById('ai-panel-body').innerHTML =
-        '<div style="margin-bottom:12px;padding:8px 12px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#6366f1;font-weight:600;">💬 ' +
-        msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>' + rendered;
+      // 質問を表示
+      document.getElementById('ai-question-bar').style.display = 'block';
+      document.getElementById('ai-question-text').textContent = msg;
+ 
+      // 回答を表示
+      document.getElementById('ai-panel-body').innerHTML = renderMarkdown(reply);
     }
     openAIPanel();
  
   } catch (e) {
     document.getElementById('ai-panel-body').innerHTML =
-      '<div style="color:#ef4444;padding:20px;">⚠️ 接続エラー: ' + e.message + '</div>';
+      '<div style="color:#ef4444;padding:40px;text-align:center;font-size:16px;">⚠️ 接続エラー: ' + e.message + '</div>';
     openAIPanel();
   }
  
