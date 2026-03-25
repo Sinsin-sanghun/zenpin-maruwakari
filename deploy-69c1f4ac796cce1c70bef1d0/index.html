@@ -1708,6 +1708,60 @@ function showNews(filter){
   document.querySelector('.main').innerHTML=html;
   document.querySelector('.main').scrollTop=0;
 }
+
+async function init(){
+  ALL=await loadAll();
+  loadNews();
+  renderStats();
+  renderList();
+
+  // Search
+  const si=document.getElementById('searchInput');
+  si.addEventListener('input',()=>renderList());
+  si.addEventListener('keydown',e=>{if(e.key==='Enter')renderList();});
+
+  // Hash navigation on load
+  const hash=location.hash;
+  if(hash&&hash.startsWith('#p')){
+    const pid=parseInt(hash.substring(2));
+    if(pid){
+      const m=ALL.find(x=>x.id===pid);
+      activeCat=m?m.major_category:'__all__';
+      activeId=pid;
+      renderList();
+      showDetail(pid);
+    }
+  }else if(hash&&hash.startsWith('#cat=')){
+    const cat=decodeURIComponent(hash.substring(5));
+    activeCat=cat;
+    renderList();
+    showCatList(cat);
+  }
+
+  // Browser back/forward button support
+  window.addEventListener('popstate',e=>{
+    const state=e.state;
+    if(!state){
+      // Back to initial state (no selection)
+      activeCat=null;
+      activeId=null;
+      renderList();
+      document.getElementById('mainContent').innerHTML='<div class="main-empty"><div class="big">📖</div><p>左側のリストから資材を選択してください</p></div>';
+    }else if(state.view==='list'){
+      activeCat=state.cat;
+      activeId=null;
+      renderList();
+      showCatList(state.cat);
+    }else if(state.view==='detail'){
+      activeCat=state.cat;
+      activeId=state.id;
+      renderList();
+      showDetail(state.id);
+    }
+  });
+}
+init();
+
 </script>
 <div class="news-nav-btn" onclick="loadNews().then(()=>showNews())">📰 News & マーケット情報</div>
 </body>
