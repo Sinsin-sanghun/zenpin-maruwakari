@@ -195,9 +195,9 @@ a{color:var(--ac);text-decoration:none;}
 
 /* ===== AI ASSISTANT STYLES ===== */
 /* AI Panel (right side, resizable) */
-.ai-panel{display:none;flex-direction:column;background:#1e293b;border-left:1px solid #334155;width:400px;min-width:280px;max-width:60vw;overflow:hidden;z-index:20}
+.ai-panel{display:none;flex-direction:column;background:#1e293b;border-left:1px solid #334155;width:400px;min-width:280px;max-width:60vw;overflow:hidden;z-index:20;flex-shrink:0;height:100%}
 .ai-panel.vis{display:flex}
-.ai-resize{width:5px;cursor:col-resize;background:transparent;flex-shrink:0;position:absolute;top:0;bottom:0;z-index:10;transition:background .15s}
+.ai-resize{width:5px;cursor:col-resize;background:transparent;flex-shrink:0;z-index:10;transition:background .15s}
 .ai-resize:hover,.ai-resize.dragging{background:#f59e0b;opacity:.5}
 .ai-panel-hdr{display:flex;align-items:center;gap:6px;padding:12px 16px;background:#0f172a;border-bottom:1px solid #334155;font-size:13px;font-weight:700;color:#e2e8f0;flex-shrink:0;border-radius:0}
 .ai-panel-hdr .close{margin-left:auto;cursor:pointer;font-size:14px;color:#94a3b8;background:none;border:none;padding:2px 6px;border-radius:4px}
@@ -291,10 +291,11 @@ a{color:var(--ac);text-decoration:none;}
     <div class="suggest" id="sq" style="display:none;"></div>
     <div class="content-area">
       <div class="main" id="mainContent">
-    <div class="main-empty">
-      <div class="big">📖</div>
-      <p>左側のリストから資材を選択してください</p>
-    </div>
+        <div class="main-empty">
+          <div class="big">📖</div>
+          <p>左側のリストから資材を選択してください</p>
+        </div>
+      </div>
       <div class="ai-resize" id="ar"></div>
       <div class="ai-panel" id="ap">
         <div class="ai-panel-hdr">🤖 AI分析結果<button class="close" onclick="closeAI()">✕</button></div>
@@ -309,7 +310,6 @@ a{color:var(--ac);text-decoration:none;}
       </div>
       <div class="chat-footer">Claude AI がDBを検索して回答します。</div>
     </div>
-  </div>
   </div>
 </div>
 
