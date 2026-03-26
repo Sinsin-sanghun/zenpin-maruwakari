@@ -1770,10 +1770,8 @@ function updateResizePos(){
 // Markdown rendering
 function renderMarkdown(txt){
   let h=esc(txt);
-  h=h.replace(/((?:^\|.+\|$
-?)+)/gm,function(tbl){
-    const rows=tbl.trim().split('
-').filter(r=>r.trim());
+  h=h.replace(/((?:^\|.+\|$\n?)+)/gm,function(tbl){
+    const rows=tbl.trim().split('\n').filter(r=>r.trim());
     if(rows.length<2)return tbl;
     let t='<table class="md-tbl">';
     const hc=rows[0].split('|').filter(c=>c.trim());
@@ -1788,8 +1786,7 @@ function renderMarkdown(txt){
   h=h.replace(/^## (.+)$/gm,'<strong style="font-size:14px;display:block;margin:12px 0 5px;border-bottom:1px solid #334155;padding-bottom:3px">$1</strong>');
   h=h.replace(/^- (.+)$/gm,'<div style="padding-left:12px">• $1</div>');
   h=h.replace(/^\d+\. (.+)$/gm,function(m,p1){return'<div style="padding-left:12px">'+m.match(/^\d+/)[0]+'. '+p1+'</div>'});
-  h=h.replace(/
-/g,'<br>');
+  h=h.replace(/\n/g,'<br>');
   return h;
 }
 
