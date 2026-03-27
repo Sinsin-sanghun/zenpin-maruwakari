@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1850,7 +1851,12 @@ async function checkAdminStatus(){
     if(!s)return;
     var e=s.user.email;
     var {data}=await authClient.rpc("check_user_admin",{user_email:e});
-    if(data&&data.is_admin){window._isAdmin=true;if(data.is_super_admin)window._isSuperAdmin=true}
+    if(data&&data.is_admin){
+      isDiscAdmin=true;
+      isSuperAdmin=data.is_super_admin;
+      var ab=document.getElementById("btnAdmin");
+      if(ab)ab.style.display="inline-block";
+    }
   }catch(e){console.log("Admin check:",e)}
 }
 function showDiscFilter(){if(document.getElementById("discFilterBar"))return;
