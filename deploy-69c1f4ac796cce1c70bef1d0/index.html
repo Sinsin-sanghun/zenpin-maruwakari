@@ -563,7 +563,7 @@ function showCatList(catName){
   h+='<th>#</th><th>品名</th><th>サブカテゴリ</th><th>メーカー</th><th style="text-align:right">単価</th>';
   h+='</tr></thead><tbody>';
   items.forEach(m=>{
-    const price=m.unit_price!=null?'¥'+Number(m.unit_price).toLocaleString():'—';
+    const price=m.unit_price!=null?(typeof m.unit_price==='string'?m.unit_price:'¥'+Number(m.unit_price).toLocaleString()):'—';
     h+='<tr class="'+(m.is_discontinued?'row-discontinued':'')+'" data-id="'+m.id+'">';
     h+='<td class="r-num">'+String(m.id).padStart(3,'0')+'</td>';
     h+='<td class="r-name">'+m.product_name+'</td>';
@@ -1562,7 +1562,7 @@ function showDetail(id){
   if(!m)return;
   const main=document.getElementById('mainContent');
   const numId=String(m.id).padStart(3,'0');
-  const price=m.unit_price!=null?'¥'+Number(m.unit_price).toLocaleString():'—';
+  const price=m.unit_price!=null?(typeof m.unit_price==='string'?m.unit_price:'¥'+Number(m.unit_price).toLocaleString()):'—';
   const unit=m.unit||'';
 
   // --- Photo row (above diagrams) ---
@@ -1841,7 +1841,7 @@ function cleanRecTags(t){return t.replace(/<<RECOMMEND:.*?>>/g,'').replace(/<<RE
 
 // Utility: HTML escape
 function esc(s){const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
-function fp(n){return(!n||n<=0)?'要見積':'¥'+Number(n).toLocaleString('ja-JP')}
+function fp(n){if(!n)return'要見積';if(typeof n==='string'){var num=Number(n.replace(/[¥￥,，\s]/g,''));return isNaN(num)||num<=0?'要見積':'¥'+num.toLocaleString('ja-JP')}return n<=0?'要見積':'¥'+Number(n).toLocaleString('ja-JP')}
 
 
 var isDiscAdmin=false,isSuperAdmin=false,hideDiscontinued=false,discTargetId=null;
