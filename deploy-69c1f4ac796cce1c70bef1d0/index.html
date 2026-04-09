@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1763,27 +1762,68 @@ ${rawMsg}
 
   try{
     const r=await fetch(API_CHAT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,history:HIST.slice(-6),showPrice:SHOW_PRICE})});
-    const d=await r.json();
-    if(d.error){
-      document.getElementById('ab').innerHTML='<span style="color:#f97316">⚠️ '+esc(d.error)+'</span>';
-      LAST_AI_HTML=document.getElementById('ab').innerHTML;
+    const ct=r.headers.get('content-type')||'';
+    if(ct.includes('text/event-stream')){
+      const reader=r.body.getReader();
+      const dec=new TextDecoder();
+      let rawTxt='';
+      let buf='';
+      const ab=document.getElementById('ab');
+      ab.innerHTML='';
       showAI();
-    }else{
-      const rawTxt=d.response||'応答なし';
+      while(true){
+        const{done,value}=await reader.read();
+        if(done)break;
+        buf+=dec.decode(value,{stream:true});
+        const lines=buf.split('\n');
+        buf=lines.pop()||'';
+        for(const line of lines){
+          if(!line.startsWith('data: '))continue;
+          const payload=line.slice(6);
+          if(payload==='[DONE]')continue;
+          try{
+            const ev=JSON.parse(payload);
+            if(ev.type==='content_block_delta'&&ev.delta&&ev.delta.type==='text_delta'){
+              rawTxt+=ev.delta.text;
+              const cleanTxt=cleanRecTags(rawTxt);
+              ab.innerHTML=renderMarkdown(cleanTxt);
+              ab.scrollTop=ab.scrollHeight;
+            }
+          }catch(e){}
+        }
+      }
+      if(!rawTxt)rawTxt='å¿ç­ãªã';
       HIST.push({role:'user',content:rawMsg},{role:'assistant',content:rawTxt});
       const recs=parseRecommendations(rawTxt);
       REC_IDS=recs.ids;REC_NAMES=recs.names;
-      const txt=cleanRecTags(rawTxt);
-      const html=renderMarkdown(txt);
-      document.getElementById('ab').innerHTML=html;
-      LAST_AI_HTML=html;
+      const finalClean=cleanRecTags(rawTxt);
+      document.getElementById('ab').innerHTML=renderMarkdown(finalClean);
+      LAST_AI_HTML=document.getElementById('ab').innerHTML;
       showAI();
+    }else{
+      const d=await r.json();
+      if(d.error){
+        document.getElementById('ab').innerHTML='<span style="color:#f97316">â ï¸ '+esc(d.error)+'</span>';
+        LAST_AI_HTML=document.getElementById('ab').innerHTML;
+        showAI();
+      }else{
+        const rawTxt=d.response||'å¿ç­ãªã';
+        HIST.push({role:'user',content:rawMsg},{role:'assistant',content:rawTxt});
+        const recs=parseRecommendations(rawTxt);
+        REC_IDS=recs.ids;REC_NAMES=recs.names;
+        const txt=cleanRecTags(rawTxt);
+        const html=renderMarkdown(txt);
+        document.getElementById('ab').innerHTML=html;
+        LAST_AI_HTML=html;
+        showAI();
+      }
     }
   }catch(e){
-    document.getElementById('ab').innerHTML='<span style="color:#f97316">⚠️ 接続エラー: '+esc(e.message)+'</span>';
+    document.getElementById('ab').innerHTML='<span style="color:#f97316">â ï¸ æ¥ç¶ã¨ã©ã¼: '+esc(e.message)+'</span>';
     LAST_AI_HTML=document.getElementById('ab').innerHTML;
     showAI();
   }
+
   BUSY=false;document.getElementById('qb').disabled=false;
 }
 
