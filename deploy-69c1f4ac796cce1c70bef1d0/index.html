@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -1792,7 +1793,7 @@ ${rawMsg}
           }catch(e){}
         }
       }
-      if(!rawTxt)rawTxt='å¿ç­ãªã';
+      if(!rawTxt)rawTxt='応答なし';
       HIST.push({role:'user',content:rawMsg},{role:'assistant',content:rawTxt});
       const recs=parseRecommendations(rawTxt);
       REC_IDS=recs.ids;REC_NAMES=recs.names;
@@ -1803,11 +1804,11 @@ ${rawMsg}
     }else{
       const d=await r.json();
       if(d.error){
-        document.getElementById('ab').innerHTML='<span style="color:#f97316">â ï¸ '+esc(d.error)+'</span>';
+        document.getElementById('ab').innerHTML='<span style="color:#f97316">⚠️ '+esc(d.error)+'</span>';
         LAST_AI_HTML=document.getElementById('ab').innerHTML;
         showAI();
       }else{
-        const rawTxt=d.response||'å¿ç­ãªã';
+        const rawTxt=d.response||'応答なし';
         HIST.push({role:'user',content:rawMsg},{role:'assistant',content:rawTxt});
         const recs=parseRecommendations(rawTxt);
         REC_IDS=recs.ids;REC_NAMES=recs.names;
@@ -1819,11 +1820,10 @@ ${rawMsg}
       }
     }
   }catch(e){
-    document.getElementById('ab').innerHTML='<span style="color:#f97316">â ï¸ æ¥ç¶ã¨ã©ã¼: '+esc(e.message)+'</span>';
+    document.getElementById('ab').innerHTML='<span style="color:#f97316">⚠️ 接続エラー: '+esc(e.message)+'</span>';
     LAST_AI_HTML=document.getElementById('ab').innerHTML;
     showAI();
   }
-
   BUSY=false;document.getElementById('qb').disabled=false;
 }
 
