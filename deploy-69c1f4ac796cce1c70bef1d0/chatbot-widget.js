@@ -1,5 +1,5 @@
 /**
- * AI Chatbot Widget - zenpin-maruwakari
+ * AI Chatbot Widget - zenpin-maruwakari-guide
  * Bottom input bar + Right side panel design
  */
 (function () {
@@ -7,8 +7,8 @@
 
   /* ── Config ── */
   const API = "/.netlify/functions/chat";
-  const TITLE = "\u{1F4D7} AI\u8CC7\u6750\u30AC\u30A4\u30C9";
-  const PLACEHOLDER = "AI\u306B\u8CEA\u554F\uFF08\u4F8B: \u3053\u306E\u88FD\u54C1\u306E\u7279\u5FB4\u306F\uFF1F \u304A\u3059\u3059\u3081\u306F\uFF1F\uFF09";
+  const TITLE = "\u{1F4CE} AI\u8CC7\u6750\u30A2\u30B7\u30B9\u30BF\u30F3\u30C8";
+  const PLACEHOLDER = "AI\u306B\u8CEA\u554F\uFF08\u4F8B: \u304A\u3059\u3059\u3081\u306E\u8CC7\u6750\u306F\uFF1F \u91D1\u984D\u306E\u8A73\u7D30\u306F\uFF1F\uFF09";
   const FOOTER_TEXT = "Claude AI \u304CDB\u3092\u691C\u7D22\u3057\u3066\u56DE\u7B54\u3057\u307E\u3059\u3002";
 
   /* ── Styles ── */
@@ -21,7 +21,7 @@
     .ai-chat-row{display:flex;gap:8px;align-items:center;}
     .ai-chat-bar input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid #334155;
       background:#1e293b;color:#e2e8f0;font-size:14px;outline:none;}
-    .ai-chat-bar input:focus{border-color:#34d399;}
+    .ai-chat-bar input:focus{border-color:#10b981;}
     .ai-chat-bar input::placeholder{color:#94a3b8;}
     .ai-chat-bar button{padding:10px 20px;border-radius:8px;border:none;
       background:#059669;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap;}
@@ -29,7 +29,7 @@
     .ai-chat-bar .ai-footer{font-size:11px;color:#64748b;text-align:center;}
 
     /* Right Panel */
-    .ai-panel{position:fixed;top:0;right:0;bottom:0;width:400px;z-index:9997;
+    .ai-panel{position:fixed;top:0;right:0;bottom:60px;width:400px;z-index:9997;
       background:#1e293b;border-left:1px solid #334155;display:flex;flex-direction:column;
       transform:translateX(100%);transition:transform .3s ease;}
     .ai-panel.vis{transform:translateX(0);}
@@ -45,7 +45,7 @@
     .ai-panel-body .ai-msg{margin-bottom:16px;padding:12px;border-radius:8px;}
     .ai-panel-body .ai-msg.user{background:#334155;text-align:right;}
     .ai-panel-body .ai-msg.assistant{background:#0f172a;}
-    .ai-panel-body .ai-msg.assistant h3{color:#34d399;font-size:14px;margin:12px 0 4px;}
+    .ai-panel-body .ai-msg.assistant h3{color:#10b981;font-size:14px;margin:12px 0 4px;}
     .ai-panel-body .ai-msg.assistant ul{margin:4px 0 4px 18px;}
     .ai-panel-body .ai-msg.assistant li{margin:2px 0;}
     .ai-panel-body .ai-msg.assistant code{background:#334155;padding:1px 5px;border-radius:3px;font-size:13px;}
@@ -53,7 +53,7 @@
     .ai-panel-body .ai-loading{color:#94a3b8;padding:12px;text-align:center;}
 
     /* Resize handle */
-    .ai-resize{position:fixed;top:0;bottom:0;width:5px;right:400px;z-index:9999;
+    .ai-resize{position:fixed;top:0;bottom:60px;width:5px;right:400px;z-index:9999;
       cursor:col-resize;background:transparent;display:none;}
     .ai-panel.vis~.ai-resize{display:block;}
     .ai-resize:hover{background:#334155;}
@@ -69,11 +69,11 @@
   bar.id = "ai-chat-bar";
   bar.innerHTML = `
     <div class="ai-chat-row">
-      <input type="text" id="ai-q-input" placeholder="${PLACEHOLDER}"
+      <input type="text" id="ai-q-input" placeholder="\${PLACEHOLDER}"
              onkeydown="if(event.key==='Enter')window._aiAsk()">
       <button onclick="window._aiAsk()">\u9001\u4FE1</button>
     </div>
-    <div class="ai-footer">${FOOTER_TEXT}</div>
+    <div class="ai-footer">\${FOOTER_TEXT}</div>
   `;
   document.body.appendChild(bar);
 
@@ -83,12 +83,12 @@
   panel.id = "ai-panel";
   panel.innerHTML = `
     <div class="ai-panel-hdr">
-      <span>${TITLE}</span>
+      <span>\${TITLE}</span>
       <button onclick="window._aiClose()">\u2715</button>
     </div>
     <div class="ai-panel-body" id="ai-panel-body">
       <div class="ai-welcome">
-        \u8CC7\u6750\u30FB\u88FD\u54C1\u306B\u95A2\u3059\u308B\u8CEA\u554F\u3092<br>\u4E0B\u306E\u5165\u529B\u6B04\u304B\u3089\u3069\u3046\u305E\u3002
+        \u8CC7\u6750\u30FB\u5358\u4FA1\u306B\u95A2\u3059\u308B\u8CEA\u554F\u3092<br>\u4E0B\u306E\u5165\u529B\u6B04\u304B\u3089\u3069\u3046\u305E\u3002
       </div>
     </div>
   `;
@@ -121,7 +121,7 @@
     return text
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\`([^\`]+)\`/g, "<code>$1</code>")
       .replace(/^### (.+)$/gm, "<h3>$1</h3>")
       .replace(/^[-*] (.+)$/gm, "<li>$1</li>")
       .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
@@ -133,6 +133,7 @@
     const body = document.getElementById("ai-panel-body");
     const welcome = body.querySelector(".ai-welcome");
     if (welcome) welcome.remove();
+
     const div = document.createElement("div");
     div.className = "ai-msg " + role;
     div.innerHTML = role === "user" ? text : renderMd(text);
@@ -145,15 +146,18 @@
     const msg = input.value.trim();
     if (!msg) return;
     input.value = "";
+
     openPanel();
     addMsg("user", msg);
     history.push({ role: "user", content: msg });
+
     const body = document.getElementById("ai-panel-body");
     const loader = document.createElement("div");
     loader.className = "ai-loading";
     loader.textContent = "\u2026\u56DE\u7B54\u3092\u751F\u6210\u4E2D";
     body.appendChild(loader);
     body.scrollTop = body.scrollHeight;
+
     try {
       const res = await fetch(API, {
         method: "POST",
@@ -162,6 +166,7 @@
       });
       const ct = res.headers.get("content-type") || "";
       let answer = "";
+
       if (ct.includes("text/event-stream")) {
         const reader = res.body.getReader();
         const dec = new TextDecoder();
@@ -188,6 +193,7 @@
         const data = await res.json();
         answer = data.response || data.error || "\u5FDC\u7B54\u306A\u3057";
       }
+
       loader.remove();
       addMsg("assistant", answer);
       history.push({ role: "assistant", content: answer });
